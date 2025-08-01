@@ -2,6 +2,7 @@
 #include "gng_bool.h"
 
 #include "gng_math.c"
+#include "gng_math.h"
 #include "gng_util.c"
 #include "gng_random.c"
 #include "gng_memory.c"
@@ -9,11 +10,12 @@
 #include "gng_assets.c"
 #include "gng_sprites.c"
 #include "gng_audio.c"
+#include "gng_3d.c"
 
 plat_console_log *debugConsoleLog;
 
 #include "hitbox/hitbox.c"
-//#include "sponge_game/sponge_game.c"
+#include "ghost_racing_game/ghost_racing_game.c"
 
 typedef struct key_path_pair {
     char *key;
@@ -227,7 +229,7 @@ UPDATE_GNG_GAME(updateGNGGame) {
     if (!state->initialized) {
         state->initialized = true;
 
-        //state->spongeGame = (SpongeGame){};
+        state->grGame = (GrGame){};
 
         setRNGSeed(platAPI.rngSeedFromTime());
 
@@ -264,6 +266,13 @@ UPDATE_GNG_GAME(updateGNGGame) {
             .type = ASSET_TO_LOAD_TYPE_BITMAP,
             .loaded = false,
             .key = "font"
+        });
+        asset_to_load_listPush(assetList, (asset_to_load){
+            .name = "track",
+            .path = "assets/track.bmp",
+            .type = ASSET_TO_LOAD_TYPE_BITMAP,
+            .loaded = false,
+            .key = "track"
         });
 
         // Sponge frame data
@@ -397,9 +406,9 @@ UPDATE_GNG_GAME(updateGNGGame) {
     }
 
     if (state->assetMan.allFilesLoaded) {
-        //if (!state->spongeGame.isInitialized) {
-        //    initSpongeGame(&state->spongeGame, &state->memory);
-        //}
+        if (!state->grGame.isInitialized) {
+            initGrGame(&state->grGame, &state->memory);
+        }
         
         if (platAPI.hasTouchControls) {
             setVirtualInput(&state->vInput, input, &platAPI);
@@ -425,27 +434,24 @@ UPDATE_GNG_GAME(updateGNGGame) {
             }
             remainingTime -= updateDelta;
 
-            //updateSpongeGame(&state->spongeGame, input, &state->vInput, timeStep, platAPI, &state->memory);
+            updateGrGame(&state->grGame, input, &state->vInput, timeStep, platAPI, &state->memory);
 
             resetInput(input, &state->vInput);
         }
 
+        basic3DMan.shouldDraw = false;
 
-        //drawSpongeGame(&state->spongeGame, platAPI);
+        drawGrGame(&state->grGame, platAPI);
         
         // TODO(ebuchholz): testing, remove
-        static float t = 0.0f;
-        t += 0.700f * dt;
-        while (t >= 1000.0f) {
-            t -= 1000.0f;
-        }
-
+        basic3DMan.shouldDraw = true;
+        mat4x4 view = createViewMatrix(quat rotation, float x, float y, float z) 
+       
         sprite s = defaultSprite();
         s.pos.x = 100.0f;
         s.pos.y = 100.0f;
-        s.rotation = t;
-        s.atlasKey = "game_atlas";
-        s.frameKey = "sponge_man";
+        s.rotation = 0.f;
+        s.textureKey = "track";
         s.anchor = (vec2){ .x = 0.5f, .y = 0.5f };
         spriteManAddSprite(s);
 
@@ -543,21 +549,16 @@ UPDATE_GNG_GAME(updateGNGGame) {
         }
     }
 
-
     spriteBatchStart(renderMemory);
-
 
     render_cmd_header *header = (render_cmd_header *)allocMemory(renderMemory, sizeof(render_cmd_header));
     header->type = RENDER_CMD_TYPE_SPRITE_BATCH_DRAW;
 
-
     render_cmd_sprite_batch_draw *cmd = (render_cmd_sprite_batch_draw *)allocMemory(renderMemory, sizeof(render_cmd_sprite_batch_draw));
     cmd->numSprites = spriteMan->sprites.numValues;
 
-
     render_cmd_sprite_data *spriteDatas = (render_cmd_sprite_data *)allocMemory(renderMemory, cmd->numSprites * sizeof(render_cmd_sprite_data));
     cmd->sprites = spriteDatas;
-
 
     for (u32 spriteIndex = 0; spriteIndex < spriteMan->sprites.numValues; spriteIndex++) {
         sprite *s = &spriteMan->sprites.values[spriteIndex];

@@ -63,6 +63,31 @@ mat3x3 mat3x3MatrixMul (mat3x3 a, mat3x3 b) {
     return result;
 }
 
+mat4x4 mat4x4MatrixMul (mat4x4 a, mat4x4 b) {
+    mat4x4 result = {
+        .m[0] = a.m[0]*b.m[0] + a.m[1]*b.m[4] + a.m[2]*b.m[8]  + a.m[3]*b.m[12],
+        .m[1] = a.m[0]*b.m[1] + a.m[1]*b.m[5] + a.m[2]*b.m[9]  + a.m[3]*b.m[13],
+        .m[2] = a.m[0]*b.m[2] + a.m[1]*b.m[6] + a.m[2]*b.m[10] + a.m[3]*b.m[14],
+        .m[3] = a.m[0]*b.m[3] + a.m[1]*b.m[7] + a.m[2]*b.m[11] + a.m[3]*b.m[15],
+
+        .m[4] = a.m[4]*b.m[0] + a.m[5]*b.m[4] + a.m[6]*b.m[8]  + a.m[7]*b.m[12],
+        .m[5] = a.m[4]*b.m[1] + a.m[5]*b.m[5] + a.m[6]*b.m[9]  + a.m[7]*b.m[13],
+        .m[6] = a.m[4]*b.m[2] + a.m[5]*b.m[6] + a.m[6]*b.m[10] + a.m[7]*b.m[14],
+        .m[7] = a.m[4]*b.m[3] + a.m[5]*b.m[7] + a.m[6]*b.m[11] + a.m[7]*b.m[15],
+
+        .m[8]  = a.m[8]*b.m[0] + a.m[9]*b.m[4] + a.m[10]*b.m[8]  + a.m[11]*b.m[12],
+        .m[9]  = a.m[8]*b.m[1] + a.m[9]*b.m[5] + a.m[10]*b.m[9]  + a.m[11]*b.m[13],
+        .m[10] = a.m[8]*b.m[2] + a.m[9]*b.m[6] + a.m[10]*b.m[10] + a.m[11]*b.m[14],
+        .m[11] = a.m[8]*b.m[3] + a.m[9]*b.m[7] + a.m[10]*b.m[11] + a.m[11]*b.m[15],
+
+        .m[12] = a.m[12]*b.m[0] + a.m[13]*b.m[4] + a.m[14]*b.m[8]  + a.m[15]*b.m[12],
+        .m[13] = a.m[12]*b.m[1] + a.m[13]*b.m[5] + a.m[14]*b.m[9]  + a.m[15]*b.m[13],
+        .m[14] = a.m[12]*b.m[2] + a.m[13]*b.m[6] + a.m[14]*b.m[10] + a.m[15]*b.m[14],
+        .m[15] = a.m[12]*b.m[3] + a.m[13]*b.m[7] + a.m[14]*b.m[11] + a.m[15]*b.m[15]
+    };
+    return result;
+}
+
 mat3x3 mat3x3ScalarMul (f32 a, mat3x3 b) {
     mat3x3 result = {
         .m[0] = a*b.m[0],
@@ -90,6 +115,96 @@ mat3x3 mat3x3Transpose (mat3x3 a) {
         .m[7] = a.m[5],
         .m[8] = a.m[8]
     };
+    return result;
+}
+
+mat4x4 mat4x4Transpose (mat4x4 a) {
+    mat4x4 result = {
+        .m[0] = a.m[0],
+        .m[1] = a.m[4],
+        .m[2] = a.m[8],
+        .m[3] = a.m[12],
+        .m[4] = a.m[1],
+        .m[5] = a.m[5],
+        .m[6] = a.m[9],
+        .m[7] = a.m[13],
+        .m[8] = a.m[2],
+        .m[9] = a.m[6],
+        .m[10] = a.m[10],
+        .m[11] = a.m[14],
+        .m[12] = a.m[3],
+        .m[13] = a.m[7],
+        .m[14] = a.m[11],
+        .m[15] = a.m[15]
+    };
+
+    return result;
+}
+
+mat4x4 mat4x4FromQuat (quat q) {
+    mat4x4 result = {
+        .m[0] = 1.0f - (2.0f*q.y*q.y) - (2.0f*q.z*q.z),
+        .m[1] = (2.0f*q.x*q.y) - (2.0f*q.w*q.z),
+        .m[2] = (2.0f*q.x*q.z) + (2.0f*q.w*q.y),
+        .m[3] = 0.0f,
+
+        .m[4] = (2.0f*q.x*q.y) + (2.0f*q.w*q.z),
+        .m[5] = 1.0f - (2.0f*q.x*q.x) - (2.0f*q.z*q.z),
+        .m[6] = (2.0f*q.y*q.z) - (2.0f*q.w*q.x),
+        .m[7] = 0.0f,
+
+        .m[8] = (2.0f*q.x*q.z) - (2.0f*q.w*q.y),
+        .m[9] = (2.0f*q.y*q.z) + (2.0f*q.w*q.x),
+        .m[10] = 1.0f - (2.0f*q.x*q.x) - (2.0f*q.y*q.y),
+        .m[11] = 0.0f,
+
+        .m[12] = 0.0f,
+        .m[13] = 0.0f,
+        .m[14] = 0.0f,
+        .m[15] = 1.0f
+    };
+    return result;
+}
+
+mat4x4 identityMatrix4x4 () {
+    mat4x4 result = {
+        .m[0] = 1.0f,
+        .m[5] = 1.0f,
+        .m[10] = 1.0f,
+        .m[15] = 1.0f,
+    };
+
+    return result;
+}
+
+mat4x4 createViewMatrix (quat rotation, float x, float y, float z) {
+    mat4x4 result = mat4x4FromQuat(rotation);
+    result = mat4x4Transpose(result);
+
+    float newCamX = vec3Dot((vec3){ .x = x, .y = y, .z = z}, (vec3){ .x = result.m[0], .y = result.m[1], .z = result.m[2]});
+    float newCamY = vec3Dot((vec3){ .x = x, .y = y, .z = z}, (vec3){ .x = result.m[4], .y = result.m[5], .z = result.m[6]});
+    float newCamZ = vec3Dot((vec3){ .x = x, .y = y, .z = z}, (vec3){ .x = result.m[8], .y = result.m[9], .z = result.m[10]});
+    result.m[3] = -newCamX;
+    result.m[7] = -newCamY;
+    result.m[11] = -newCamZ;
+
+    return result;
+}
+
+mat4x4 createPerspectiveMatrix (float nearPlane, float farPlane, float aspectRatio, float tanfFovYOver2) {
+    //float f = 1.0f / tanf(fovy / 2.0f);
+    float f = 1.0f / tanfFovYOver2;
+    float nf = 1.0f / (farPlane - nearPlane);
+
+    mat4x4 result = identityMatrix4x4();
+
+    result.m[0] = f / aspectRatio;
+    result.m[5] = f;
+    result.m[10] = -(farPlane + nearPlane) * nf;
+    result.m[11] = -2 * (farPlane * nearPlane) * nf;
+    result.m[14] = -1.0f;
+    result.m[15] = 0;
+
     return result;
 }
 
@@ -346,6 +461,30 @@ b32 rectsIntersect (rect a, rect b) {
     if (a.max.y < b.min.y) { return false; }
     if (a.min.y > b.max.y) { return false; }
     return true;
+}
+
+quat quaternionFromAxisAngle (vec3 axis, f32 angle) {
+    quat result;
+    float angleOverTwo = angle / 2.0f;
+    float sinAngleOverTwo = fastSin2PI(angleOverTwo);
+
+    result.w = fastCos2PI(angleOverTwo);
+    result.x = axis.x * sinAngleOverTwo;
+    result.y = axis.y * sinAngleOverTwo;
+    result.z = axis.z * sinAngleOverTwo;
+
+    return result;
+}
+
+quat quatMul (quaternion a, quaternion b) {
+    quat result;
+
+    result.w = a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z;
+    result.x = a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y;
+    result.y = a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x;
+    result.z = a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w;
+
+    return result;
 }
 
 // TODO: implement sqrt

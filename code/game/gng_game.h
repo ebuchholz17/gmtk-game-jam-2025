@@ -10,7 +10,7 @@
 #include "gng_virtual_input.h"
 
 #include "hitbox/hitbox.h"
-//#include "sponge_game/sponge_game.h"
+#include "ghost_racing_game/ghost_racing_game.h"
 
 typedef struct spinning_triangle {
     f32 x;
@@ -29,7 +29,7 @@ typedef struct gng_game_state {
     f32 t;
     virtual_input vInput;
 
-    //SpongeGame spongeGame;
+    GrGame grGame;
 
     f32 soundT;
 

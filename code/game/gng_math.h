@@ -11,6 +11,10 @@ typedef struct mat3x3 {
     f32 m[9];
 } mat3x3;
 
+typedef struct mat4x4 {
+    f32 m[16];
+} mat4x4;
+
 typedef struct vec2 {
     f32 x;
     f32 y;
@@ -26,6 +30,13 @@ typedef struct rect {
     vec2 min;
     vec2 max;
 } rect;
+
+typedef struct quat {
+    float w;
+    float x;
+    float y;
+    float z;
+} quat;
 
 vec2 vec2Add (vec2 a, vec2 b);
 vec2 vec2Subtract (vec2 a, vec2 b);
@@ -102,5 +113,13 @@ vec2 vec2Normalize (vec2 a);
 f32 vec2LengthSqr (vec2 a);
 f32 vec2Length (vec2 a); 
 
+mat4x4 mat4x4MatrixMul (mat4x4 a, mat4x4 b) ;
+mat4x4 mat4x4Transpose (mat4x4 a) ;
+mat4x4 mat4x4FromQuat (quat q) ;
+mat4x4 identityMatrix4x4 () ;
+mat4x4 createViewMatrix (quat rotation, float x, float y, float z) ;
+mat4x4 createPerspectiveMatrix (float nearPlane, float farPlane, float aspectRatio, float tanfFovYOver2) ;
+quat quaternionFromAxisAngle (vec3 axis, f32 angle) ;
+quat quatMul (quaternion a, quaternion b) ;
 
 #endif

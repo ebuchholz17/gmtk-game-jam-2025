@@ -41,11 +41,11 @@ WASM_EXPORT void initGame (void) {
    memCapacity = getMemCapacity();
 
    // reserve space at the beginning of memory for temp memory
-   webAllocMemory(10 * 1024 * 1024);
+   webAllocMemory(100 * 1024 * 1024);
    memStart = memCurrent; 
 
    u32 mainMemorySize = 10 * 1024 * 1024;
-   u32 assetMemorySize = 16 * 1024 * 1024;
+   u32 assetMemorySize = 100 * 1024 * 1024;
    u32 scratchMemorySize = 10 * 1024 * 1024;
 
    platAPI = (plat_api){

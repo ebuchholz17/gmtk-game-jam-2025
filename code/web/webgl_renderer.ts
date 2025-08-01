@@ -16,6 +16,10 @@ class WebGLRenderer {
     public spriteVertexBuffer: WebGLBuffer = null;
     public spriteIndexBuffer: WebGLBuffer = null;
 
+    public basic3DShader: ShaderProgram = null;
+    public basic3DVertexBuffer: WebGLBuffer = null;
+    public basic3DIndexBuffer: WebGLBuffer = null;
+
     public windowWidth: number = 0;
     public windowHeight: number = 0;
 
@@ -107,6 +111,24 @@ function initWebGL (canvas: HTMLCanvasElement, memory: Uint8Array): void {
         indices[spriteIndex * 6 + 5] = (spriteIndex * 4) + 3;
     }
     wglr.spriteIndexBuffer = createIndexBuffer(gl, indices);
+
+    // 3D
+    wglr.basic3DShader = compileAndLinkShader(gl, basic_3d_vertex_source, basic_3d_fragment_source);
+
+    wglr.basic3DVertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, wglr.basic3DVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, 4 * 40, gl.STATIC_DRAW);
+
+    {
+        let indices: number[] = [];
+        indices[6 + 0] = 4 + 0;
+        indices[6 + 1] = 4 + 2;
+        indices[6 + 2] = 4 + 1;
+        indices[6 + 3] = 4 + 1;
+        indices[6 + 4] = 4 + 2;
+        indices[6 + 5] = 4 + 3;
+        wglr.basic3DIndexBuffer = createIndexBuffer(gl, indices);
+    }
 }
 
 function resizeWebGL(windowWidth: number, windowHeight: number): void{
