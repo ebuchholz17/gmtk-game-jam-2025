@@ -25,11 +25,23 @@ typedef struct CarInput {
     b32 steerRight;
 } CarInput;
 
+typedef struct Wall {
+    vec2 startPos;
+    vec2 endPos;
+} Wall;
+
+#define LIST_TYPE Wall
+#include "../list.h"
+
 typedef struct GrGame {
     DebugCamera debugCamera;
     b32 isInitialized;
 
     Car playerCar;
+    Wall_list walls;
+
+    i32 lapZoneIndex;
+    i32 lap;
 } GrGame;
 
 #endif

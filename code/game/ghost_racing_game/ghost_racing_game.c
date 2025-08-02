@@ -10,6 +10,8 @@
 #include "../gng_virtual_input.h"
 #include "../gng_3d.h"
 
+#include "track_paths.h"
+
 // https://opensource.apple.com/source/Libm/Libm-315/Source/Intel/atan.c
 #include "atan.c"
 
@@ -49,6 +51,9 @@ void startGame (void) {
     Car *playerCar = &grGame->playerCar;
     playerCar->trackPos = pixelToTrackCoords((vec2){ .x=500.f, .y = 3245.f });
     playerCar->forward = (vec2){.x=0, .y=-1.f};
+
+    grGame->lapZoneIndex = 0;
+    grGame->lap = 1;
 }
 
 
@@ -58,9 +63,22 @@ void initGrGame (GrGame *grg, mem_arena *memory) {
 
     // initialization
     // load and set one-time stuff
+    // o
+    
+    grGame->walls = Wall_listInit(memory, 100);
+    for (i32 i = 0; i < ARRAY_COUNT(trackPaths); i += 2) {
+        vec2 start = trackPaths[i];
+        vec2 end = trackPaths[i+1];
+
+        Wall wall = {
+            .startPos = start,
+            .endPos = end
+        };
+        Wall_listPush(&grGame->walls, wall);
+    }
+    
     // startGame function to init (or restart) game state
     startGame();
-
 
     grGame->isInitialized = true;
 }
@@ -117,6 +135,22 @@ CarInput handleInput (game_input *input, virtual_input *vInput) {
     result.steerRight = input->rightArrow.down || vInput->dPadRight.button.down;
 
     return result;
+}
+
+// TODO(ebuchholz): handle going backwards?
+void handleLaps (void) {
+    vec2 carPixelPos = trackToPixelCoords(grGame->playerCar.trackPos);
+    for (i32 i = 0; i < ARRAY_COUNT(lapZones); i++) {
+        rect *lapZone = &lapZones[i];
+        if (rectContainsPoint(*lapZone, carPixelPos.x, carPixelPos.y)) {
+            i32 lastIndex = grGame->lapZoneIndex;
+            grGame->lapZoneIndex = i;
+
+            if (grGame->lapZoneIndex == 0 && lastIndex == ARRAY_COUNT(lapZones) - 1) {
+                grGame->lap++;
+            }
+        }
+    }
 }
 
 f32 arctangent2(f32 y, f32 x) {
@@ -235,6 +269,35 @@ void applyGround (f32 dt) {
     }
 }
 
+vec2 closestPointOnWallToPoint (Wall *wall, vec2 point) {
+    vec2 ab = vec2Subtract(wall->endPos, wall->startPos);
+    f32 t = vec2Dot(vec2Subtract(point, wall->startPos), ab) / vec2Dot(ab, ab);
+    if (t < 0.0f) { t = 0.0f; }
+    if (t > 1.0f) { t = 1.0f; }
+    vec2 result = vec2Add(wall->startPos, vec2ScalarMul(t, ab));
+    return result;
+}
+
+void handleWalls (f32 dt) {
+    f32 wallThickness = 15.f;
+    vec2 carPixelCoords = trackToPixelCoords(grGame->playerCar.trackPos);
+    for (i32 i = 0; i < grGame->walls.numValues; i++) {
+        Wall *wall = &grGame->walls.values[i];
+
+        vec2 closestPoint = closestPointOnWallToPoint(wall, carPixelCoords);
+        vec2 disp = vec2Subtract(carPixelCoords, closestPoint);
+        f32 dist = vec2Length(disp);
+        if (dist < wallThickness) {
+            vec2 dispNorm = vec2Normalize(disp);
+            vec2 newPos = vec2Add(closestPoint, vec2ScalarMul(wallThickness + 0.01f, dispNorm));
+            grGame->playerCar.trackPos = pixelToTrackCoords(newPos);
+            // TODO(ebuchholz): cancel the portion of the velocity in the walls direction
+            grGame->playerCar.speed -= 10.0f * dt;
+        }
+    }
+}
+
+
 void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
     // check to restart game
     //debugCameraMovement(&grGame->debugCamera, input, dt);
@@ -242,6 +305,8 @@ void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt
     CarInput carInput = handleInput(input, vInput);
     steerCar(&carInput, dt);
     applyGround(dt);
+    handleWalls(dt);
+    handleLaps();
 
     grGame->debugCamera.pos = (vec3){ .x=grGame->playerCar.trackPos.x, .y = 10.0f, .z=grGame->playerCar.trackPos.y };
     grGame->debugCamera.pos = vec3Subtract(grGame->debugCamera.pos, vec3ScalarMul(5.0f, (vec3){ .x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y }));
@@ -322,4 +387,39 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
         basic3DMan->model = model;
 
         drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f);
+
+        {
+            sprite s = defaultSprite();
+            s.pos = (vec2){ .x=64.f, .y=201.0f};
+            s.atlasKey = "game_atlas";
+            s.frameKey = "speedometer_base";
+            s.anchor = (vec2){ .x=0.5f, .y=1.0f };
+            spriteManAddSprite(s);
+        }
+
+        f32 speedRotatePercent = grGame->playerCar.speed / 257.0f;
+        f32 rotationRange = 0.65;
+        f32 baseRotation = 0.425;
+
+        {
+            sprite s = defaultSprite();
+            s.pos = (vec2){ .x=64.f, .y=177.0f};
+            s.atlasKey = "game_atlas";
+            s.frameKey = "needle";
+            s.anchor = (vec2){ .x=0.5f, .y=0.5f };
+            s.rotation = baseRotation + rotationRange * speedRotatePercent;
+            spriteManAddSprite(s);
+        }
+
+        {
+            char *text = tempStringAppend("Lap ", tempStringFromI32(grGame->lap));
+            sprite_text labelText = {
+                .text = text,
+                .fontKey = "font",
+                .x = 260.0f,
+                .y = 188.0f
+            };
+            //centerText(&labelText);
+            spriteManAddText(labelText);
+        }
 }
