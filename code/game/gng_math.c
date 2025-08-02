@@ -378,8 +378,16 @@ f32 vec2Length (vec2 a) {
     return sqrtF32(vec2LengthSqr(a));
 }
 
+f32 vec3Length (vec3 a) {
+    return sqrtF32(vec3LengthSqr(a));
+}
+
 vec2 vec2Normalize (vec2 a) {
     return vec2ScalarMul((1.0f / vec2Length(a)), a);
+}
+
+vec3 vec3Normalize (vec3 a) {
+    return vec3ScalarMul((1.0f / vec3Length(a)), a);
 }
 
 
@@ -566,6 +574,86 @@ vec3 transformPoint (mat4x4 m, vec3 v, float* w){
     *w = m.m[12]*v.x + m.m[13]*v.y + m.m[14]*v.z + m.m[15]*1.0f;
 
     return result;
+}
+
+mat4x4 createLookAtMatrix (float camX, float camY, float camZ, 
+                                     float lookX, float lookY, float lookZ,
+                                     float upX, float upY, float upZ) 
+{
+    mat4x4 result = identityMatrix4x4();
+
+    vec3 zVector = vec3Normalize(vec3Subtract((vec3){lookX, lookY, lookZ}, (vec3){camX, camY, camZ}));
+    vec3 up = (vec3){upX, upY, upZ};
+    vec3 xVector = vec3Normalize(crossProduct(up, zVector));
+    vec3 yVector = vec3Normalize(crossProduct(zVector, xVector));
+
+    result.m[0] = xVector.x;
+    result.m[1] = xVector.y;
+    result.m[2] = xVector.z;
+    
+    result.m[4] = yVector.x;
+    result.m[5] = yVector.y;
+    result.m[6] = yVector.z;
+
+    result.m[8] = zVector.x;
+    result.m[9] = zVector.y;
+    result.m[10] = zVector.z;
+
+    //result = transpose(result);
+
+    float newCamX = vec3Dot((vec3){camX, camY, camZ}, (vec3){result.m[0], result.m[1], result.m[2]});
+    float newCamY = vec3Dot((vec3){camX, camY, camZ}, (vec3){result.m[4], result.m[5], result.m[6]});
+    float newCamZ = vec3Dot((vec3){camX, camY, camZ}, (vec3){result.m[8], result.m[9], result.m[10]});
+    result.m[3] = -newCamX;
+    result.m[7] = -newCamY;
+    result.m[11] = -newCamZ;
+
+    return result;
+}
+
+quat quaternionFromRotationMatrix (mat4x4 m) {
+    quat result;
+    float t;
+    if (m.m[10] > 0) {
+        if (m.m[0] > m.m[5]) {
+            t = 1.0f + m.m[0] - m.m[5] - m.m[10];
+            result = (quat){m.m[4] + m.m[1], m.m[2] + m.m[8], m.m[9] - m.m[6], t};
+        }
+        else {
+            t = 1.0f - m.m[0] + m.m[5] - m.m[10];
+            result = (quat){t, m.m[9] + m.m[6], m.m[2] - m.m[8], m.m[4] + m.m[1]};
+        }
+    }
+    else {
+        if (m.m[0] < - m.m[5]) { 
+            t = 1.0f - m.m[0] - m.m[5] + m.m[10];
+            result = (quat){m.m[9] + m.m[6], t, m.m[4] - m.m[1], m.m[2] + m.m[8]};
+        }
+        else {
+            t = 1.0f + m.m[0] + m.m[5] + m.m[10];
+            result = (quat){m.m[2] - m.m[8], m.m[4] - m.m[1], t, m.m[9] - m.m[6]};
+        }
+    }
+    float k = 0.5f / sqrtF32(t);
+    result = (quat){result.w * k, result.x * k, result.y * k, result.z * k};
+    return result;
+}
+
+// TODO(ebuchholz): make sure this is always right side up
+quat createLookAtQuaternion (float camX, float camY, float camZ, 
+                                          float lookX, float lookY, float lookZ)
+{
+    // find axis/angle and create quaternion from it
+    //vector3 zVector = normalize(Vector3(lookX, lookY, lookZ) - Vector3(camX, camY, camZ));
+    //vector3 forward = Vector3(0.0f, 0.0f, 1.0f);
+
+    //vector3 axis = normalize(crossProduct(forward, zVector));
+    //float angle = acosf(dotProduct(zVector, forward));
+
+    //return quaternionFromAxisAngle(axis, angle);
+
+    mat4x4 lookAtMatrix = createLookAtMatrix(camX, camY, camZ, lookX, lookY, lookZ, 0.0f, 1.0f, 0.0f);
+    return quaternionFromRotationMatrix(mat4x4Transpose(lookAtMatrix));
 }
 
 // TODO: implement sqrt

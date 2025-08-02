@@ -444,15 +444,6 @@ UPDATE_GNG_GAME(updateGNGGame) {
 
         drawGrGame(&state->grGame, platAPI);
        
-        sprite s = defaultSprite();
-        s.pos.x = 100.0f;
-        s.pos.y = 100.0f;
-        s.rotation = 0.f;
-        s.atlasKey = "game_atlas";
-        s.frameKey = "sponge_man";
-        s.anchor = (vec2){ .x = 0.5f, .y = 0.5f };
-        spriteManAddSprite(s);
-
         spriteManPopMatrix();
 
         if (platAPI.hasTouchControls) {

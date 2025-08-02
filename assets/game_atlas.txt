@@ -1,74 +1,81 @@
 game_atlas.png
-size: 58, 584
+size: 114, 371
 format: RGBA8888
-filter: Linear,Linear
+filter: Linear, Linear
 repeat: none
+car_0
+  rotate: false
+  xy: 2, 305
+  size: 64, 64
+  orig: 64, 64
+  offset: 0, 0
+  index: -1
 dpad_down_down
   rotate: false
-  xy: 2, 82
+  xy: 2, 54
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_down_up
   rotate: false
-  xy: 2, 138
+  xy: 46, 54
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_left_down
   rotate: false
-  xy: 2, 194
+  xy: 2, 110
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_left_up
   rotate: false
-  xy: 2, 238
+  xy: 58, 110
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_right_down
   rotate: false
-  xy: 2, 282
+  xy: 2, 154
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_right_up
   rotate: false
-  xy: 2, 326
+  xy: 58, 154
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_up_down
   rotate: false
-  xy: 2, 370
+  xy: 2, 198
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_up_up
   rotate: false
-  xy: 2, 426
+  xy: 46, 198
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 face_button_down
   rotate: false
-  xy: 2, 482
+  xy: 2, 254
   size: 49, 49
   orig: 49, 49
   offset: 0, 0
   index: -1
 face_button_up
   rotate: false
-  xy: 2, 533
+  xy: 53, 254
   size: 49, 49
   orig: 49, 49
   offset: 0, 0
@@ -89,7 +96,7 @@ grime_1
   index: -1
 grime_2
   rotate: false
-  xy: 2, 20
+  xy: 58, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
@@ -131,35 +138,35 @@ particle_white_big
   index: -1
 platform
   rotate: false
-  xy: 2, 38
+  xy: 2, 20
   size: 48, 8
   orig: 48, 8
   offset: 0, 0
   index: -1
 sponge_man
   rotate: false
-  xy: 2, 48
+  xy: 52, 20
   size: 32, 32
   orig: 32, 32
   offset: 0, 0
   index: -1
 suds_0
   rotate: false
-  xy: 12, 20
+  xy: 68, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 suds_1
   rotate: false
-  xy: 22, 20
+  xy: 78, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 suds_2
   rotate: false
-  xy: 32, 20
+  xy: 88, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0

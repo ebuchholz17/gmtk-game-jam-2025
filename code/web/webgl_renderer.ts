@@ -158,9 +158,24 @@ function resizeWebGL(windowWidth: number, windowHeight: number): void{
 function webglOnRenderSpritesStart (): void {
     let gl: WebGLRenderingContext = wglr.glContext;
     gl.viewport(0, 0, wglr.windowWidth, wglr.windowHeight);
+
+    let gameRatio = 356.0 / 200.0;
+    let windowRatio = wglr.windowWidth / wglr.windowHeight;
+
+    gl.enable(gl.SCISSOR_TEST);
+    if (gameRatio > windowRatio) {
+        let viewportHeight = wglr.windowWidth / gameRatio;
+        let offset = (wglr.windowHeight - viewportHeight) / 2;
+        gl.scissor(0, offset, wglr.windowWidth, viewportHeight);
+    }
+    else {
+        let viewportWidth = wglr.windowHeight * gameRatio;
+        let offset = (wglr.windowWidth - viewportWidth) / 2;
+        gl.scissor(offset, 0, viewportWidth, wglr.windowHeight);
+    }
+
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
-    gl.clearColor(0.05, 0.07, 0.16, 0.0);
     //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.enable(gl.BLEND);
@@ -187,10 +202,11 @@ function webglOnRender3DStart (): void {
 
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
-    gl.clearColor(0.05, 0.07, 0.16, 0.0);
+    gl.clearColor(0.09, 0.365, 0.545, 0.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.disable(gl.BLEND);
+        gl.disable(gl.SCISSOR_TEST);
     //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 

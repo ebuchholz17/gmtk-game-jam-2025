@@ -11,9 +11,23 @@ typedef struct DebugCamera {
     int lastPointerY;
 } DebugCamera;
 
+typedef struct Car {
+    vec2 trackPos;
+    vec2 forward;
+} Car;
+
+typedef struct CarInput {
+    b32 throttle;
+    b32 brake;
+    b32 steerLeft;
+    b32 steerRight;
+} CarInput;
+
 typedef struct GrGame {
     DebugCamera debugCamera;
     b32 isInitialized;
+
+    Car playerCar;
 } GrGame;
 
 #endif

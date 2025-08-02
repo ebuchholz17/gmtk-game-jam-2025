@@ -129,4 +129,11 @@ mat4x4 scaleMatrix4x4XYZ (f32 x, f32 y, f32 z) ;
 mat4x4 rotationMatrixFromAxisAngle (vec3 axis, f32 angle);
 vec3 transformPoint (mat4x4 m, vec3 v, float* w);
 
+mat4x4 createLookAtMatrix (float camX, float camY, float camZ, 
+                                     float lookX, float lookY, float lookZ,
+                                     float upX, float upY, float upZ) ;
+quat quaternionFromRotationMatrix (mat4x4 m) ;
+quat createLookAtQuaternion (float camX, float camY, float camZ, 
+                                          float lookX, float lookY, float lookZ) ;
+
 #endif
