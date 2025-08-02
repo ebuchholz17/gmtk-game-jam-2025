@@ -14,7 +14,7 @@ void main() {
     gl_Position = projMatrix * cameraPos;
     vTexCoords = texCoords;
 
-    vFogAmount = clamp((-100.0 - cameraPos.z) / (-100.0 - (-50.0)), 0.0, 1.0);
+    vFogAmount = cameraPos.z;
 }`;
 
 
@@ -29,18 +29,18 @@ varying float vFogAmount;
 uniform sampler2D texture;
 
 void main() {
-    vec2 uv = vTexCoords;
     vec2 texSize = vec2(4096.0, 4096.0);
+    vec2 uv = vTexCoords;
     uv *= texSize;
     vec2 seam = floor(uv + 0.5);
     vec2 dudv = fwidth(uv);
     uv = seam + clamp((uv - seam) / dudv, -0.5, 0.5);
     uv /= texSize;
 
-    vec4 textureColor = texture2D(texture, uv);
+    vec3 textureColor = texture2D(texture, uv).rgb;
 
-    //vec3 fogColor = vec3(0.0, 0.7, 0.8);
-    //vec3 foggedColor = vFogAmount * textureColor + (1.0 - vFogAmount) * fogColor;
-    //gl_FragColor = vec4(foggedColor, 1.0);
-    gl_FragColor = textureColor;
+    vec3 fogColor = vec3(0.144, 0.41, 0.90);
+    float fogFactor = clamp(1.0 - vFogAmount / -900.0, 0.0, 1.0);
+    vec3 foggedColor = fogFactor * textureColor + (1.0 - fogFactor) * fogColor;
+    gl_FragColor = vec4(foggedColor, 1.0);
 }`;

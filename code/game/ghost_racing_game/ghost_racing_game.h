@@ -14,6 +14,8 @@ typedef struct DebugCamera {
 typedef struct Car {
     vec2 trackPos;
     vec2 forward;
+    f32 speed;
+    f32 wheel;
 } Car;
 
 typedef struct CarInput {

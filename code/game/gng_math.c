@@ -582,7 +582,7 @@ mat4x4 createLookAtMatrix (float camX, float camY, float camZ,
 {
     mat4x4 result = identityMatrix4x4();
 
-    vec3 zVector = vec3Normalize(vec3Subtract((vec3){lookX, lookY, lookZ}, (vec3){camX, camY, camZ}));
+    vec3 zVector = vec3Normalize(vec3Subtract((vec3){camX, camY, camZ}, (vec3){lookX, lookY, lookZ}));
     vec3 up = (vec3){upX, upY, upZ};
     vec3 xVector = vec3Normalize(crossProduct(up, zVector));
     vec3 yVector = vec3Normalize(crossProduct(zVector, xVector));

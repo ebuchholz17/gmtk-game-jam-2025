@@ -153,5 +153,7 @@ typedef struct asset_man {
 data_asset *getDataAsset (char *key);
 extern asset_man *assetMan;
 
+texture_asset *getTexture (asset_man *assetMan, char *key);
+
 #endif
 

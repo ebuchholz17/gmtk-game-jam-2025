@@ -1,5 +1,6 @@
 #include "ghost_racing_game.h"
 
+#include "../gng_assets.h"
 #include "../gng_bool.h"
 #include "../gng_math.h"
 #include "../gng_memory.h"
@@ -111,6 +112,7 @@ CarInput handleInput (game_input *input, virtual_input *vInput) {
     CarInput result;
 
     result.throttle = input->upArrow.down || vInput->bottomButton.button.down;
+    result.brake = input->downArrow.down || vInput->rightButton.button.down;
     result.steerLeft = input->leftArrow.down || vInput->dPadLeft.button.down;
     result.steerRight = input->rightArrow.down || vInput->dPadRight.button.down;
 
@@ -139,26 +141,97 @@ f32 arctangent2(f32 y, f32 x) {
 }
 
 void steerCar (CarInput *input, f32 dt) {
-    f32 speed = 100.0f;
+    f32 acceleration = 11.0f;
+    f32 maxSpeed = 180.0f;
     if (input->throttle) {
-        grGame->playerCar.trackPos.x += speed * grGame->playerCar.forward.x * dt;
-        grGame->playerCar.trackPos.y += speed * grGame->playerCar.forward.y * dt;
+        grGame->playerCar.speed += 11.0f * dt;
+    }
+    else {
+        grGame->playerCar.speed -= 5.0f * dt;
     }
 
-    f32 turnSpeed = 0.25f;
-    f32 angle = arctangent2(grGame->playerCar.forward.y, grGame->playerCar.forward.x);
-    angle /= (2.0f * PI);
-    if (input->steerLeft) {
-        angle -= turnSpeed * dt;
-        grGame->playerCar.forward.x = fastCos2PI(angle);
-        grGame->playerCar.forward.y = fastSin2PI(angle);
-        grGame->playerCar.forward = vec2Normalize(grGame->playerCar.forward);
+    if (input->brake) {
+        grGame->playerCar.speed -= 50.0f * dt;
     }
-    if (input->steerRight) {
-        angle += turnSpeed * dt;
-        grGame->playerCar.forward.x = fastCos2PI(angle);
-        grGame->playerCar.forward.y = fastSin2PI(angle);
-        grGame->playerCar.forward = vec2Normalize(grGame->playerCar.forward);
+
+    if (grGame->playerCar.speed > maxSpeed) {
+        grGame->playerCar.speed = maxSpeed;
+    }
+    if (grGame->playerCar.speed < 0.f) {
+        grGame->playerCar.speed = 0.f;
+    }
+
+    grGame->playerCar.trackPos.x += grGame->playerCar.speed * grGame->playerCar.forward.x * dt;
+    grGame->playerCar.trackPos.y += grGame->playerCar.speed * grGame->playerCar.forward.y * dt;
+
+    Car *playerCar = &grGame->playerCar;
+
+    f32 turnSpeed = 0.35f;
+    f32 angle = arctangent2(playerCar->forward.y, playerCar->forward.x);
+    angle /= (2.0f * PI);
+    f32 wheelSpeed = 3.0f;
+    if (input->steerLeft) {
+        playerCar->wheel -= wheelSpeed * dt;
+    }
+    else if (input->steerRight) {
+        playerCar->wheel += wheelSpeed * dt;
+    }
+    else {
+        if (playerCar->wheel > 0.0f) {
+            playerCar->wheel -= wheelSpeed * dt;
+            if (playerCar->wheel < 0.0f) {
+                playerCar->wheel = 0.0f;
+            }
+        }
+        else if (playerCar->wheel < 0.0f) {
+            playerCar->wheel += wheelSpeed * dt;
+            if (playerCar->wheel > 0.0f) {
+                playerCar->wheel = 0.0f;
+            }
+        }
+    }
+
+    f32 maxWheel = 1.0f;
+    if (playerCar->speed > 45.0f) {
+        maxWheel = 1.0f - ((playerCar->speed - 45.0f) / 90.0f) * 0.5f;
+    }
+
+    if (playerCar->wheel < -maxWheel) {
+        playerCar->wheel = -maxWheel;
+    }
+    if (playerCar->wheel > maxWheel) {
+        playerCar->wheel = maxWheel;
+    }
+
+    if (playerCar->wheel != 0.0f) {
+        angle += playerCar->wheel * turnSpeed * dt;
+        playerCar->forward.x = fastCos2PI(angle);
+        playerCar->forward.y = fastSin2PI(angle);
+        playerCar->forward = vec2Normalize(playerCar->forward);
+    }
+}
+
+void applyGround (f32 dt) {
+    vec2 carPixelPos = trackToPixelCoords((vec2){ grGame->playerCar.trackPos.x, grGame->playerCar.trackPos.y});
+    int carPixelX = carPixelPos.x;
+    int carPixelY = carPixelPos.y;
+    if (carPixelX >= 0 && carPixelY >= 0 && carPixelX < 4096 && carPixelY < 4096) {
+        texture_asset *track = getTexture(assetMan, "track");
+
+        u8 *pixel = &track->pixels[carPixelY * track->width * 4 + carPixelX * 4];
+        u8 r = pixel[0];
+        u8 g = pixel[1];
+        u8 b = pixel[2];
+        b32 onTrack = false;
+        if ((r == 28 && g == 41 && b == 50) ||
+            (r == 255 && g == 255 && b == 255)) 
+        {
+            onTrack = true;
+        }
+
+        if (!onTrack) {
+            grGame->playerCar.speed -= grGame->playerCar.speed * 1.f * dt;
+        }
     }
 }
 
@@ -168,14 +241,15 @@ void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt
 
     CarInput carInput = handleInput(input, vInput);
     steerCar(&carInput, dt);
+    applyGround(dt);
 
-    grGame->debugCamera.pos = (vec3){ .x=grGame->playerCar.trackPos.x, .y = 15.0f, .z=grGame->playerCar.trackPos.y };
-    grGame->debugCamera.pos = vec3Subtract(grGame->debugCamera.pos, vec3ScalarMul(15.0f, (vec3){ .x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y }));
-    vec3 trackPos3D = (vec3){.x=grGame->playerCar.trackPos.x, .y=0.f, .z=grGame->playerCar.trackPos.y};
-    vec3 forward3D = (vec3){.x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y};
-    vec3 lookAtPos = vec3Add(trackPos3D, vec3ScalarMul(25.0f, forward3D));
-    grGame->debugCamera.rotation = createLookAtQuaternion(grGame->debugCamera.pos.x, grGame->debugCamera.pos.y, grGame->debugCamera.pos.z,
-                                                            lookAtPos.x, lookAtPos.y, lookAtPos.z);
+    grGame->debugCamera.pos = (vec3){ .x=grGame->playerCar.trackPos.x, .y = 10.0f, .z=grGame->playerCar.trackPos.y };
+    grGame->debugCamera.pos = vec3Subtract(grGame->debugCamera.pos, vec3ScalarMul(5.0f, (vec3){ .x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y }));
+    //vec3 trackPos3D = (vec3){.x=grGame->playerCar.trackPos.x, .y=0.f, .z=grGame->playerCar.trackPos.y};
+    //vec3 forward3D = (vec3){.x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y};
+    //vec3 lookAtPos = vec3Add(trackPos3D, vec3ScalarMul(25.0f, forward3D));
+    //grGame->debugCamera.rotation = createLookAtQuaternion(grGame->debugCamera.pos.x, grGame->debugCamera.pos.y, grGame->debugCamera.pos.z,
+    //                                                        lookAtPos.x, lookAtPos.y, lookAtPos.z);
 }
 
 void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
@@ -210,6 +284,13 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
                                        grGame->debugCamera.pos.y,
                                        grGame->debugCamera.pos.z);
 
+    vec3 trackPos3D = (vec3){.x=grGame->playerCar.trackPos.x, .y=0.f, .z=grGame->playerCar.trackPos.y};
+    vec3 forward3D = (vec3){.x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y};
+    vec3 lookAtPos = vec3Add(trackPos3D, vec3ScalarMul(12.0f, forward3D));
+        view = createLookAtMatrix(grGame->debugCamera.pos.x, grGame->debugCamera.pos.y, grGame->debugCamera.pos.z,
+                                                            lookAtPos.x, lookAtPos.y, lookAtPos.z,
+                                                                0.0f, 1.0f, 0.f);
+
         // NOTE(ebuchholz): copy-pasted from gng_game
         f32 gameWidth = 356.0f;
         f32 gameHeight = 200.0f;
@@ -224,7 +305,7 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
        // float nf = 1.0f / (farPlane - nearPlane);
        
         // 1.234
-        mat4x4 proj = createPerspectiveMatrix(nearViewDist, farViewDist, viewRatio, 0.5f);
+        mat4x4 proj = createPerspectiveMatrix(nearViewDist, farViewDist, viewRatio, 0.8f);
 
         basic3DMan->view = view;
         basic3DMan->proj = proj;
@@ -240,5 +321,5 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
 
         basic3DMan->model = model;
 
-        drawBillBoard(grGame->playerCar.trackPos, "car_0", 100.0f);
+        drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f);
 }

@@ -202,7 +202,7 @@ function webglOnRender3DStart (): void {
 
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
-    gl.clearColor(0.09, 0.365, 0.545, 0.0);
+    gl.clearColor(0.00, 0.294, 0.839, 0.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.disable(gl.BLEND);
