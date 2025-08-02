@@ -26,7 +26,6 @@ void webglFlushSprites (webgl_renderer *wglr) {
 
 void webglRenderGame (webgl_renderer *wglr, mem_arena *renderMemory) {
 
-    webglOnRenderStart();
 
     wglr->numSpritesDrawnThisFrame = 0;
 
@@ -54,6 +53,7 @@ void webglRenderGame (webgl_renderer *wglr, mem_arena *renderMemory) {
             } break;
             case RENDER_CMD_TYPE_SPRITE_BATCH_START: {
                 // NOTE: no data in render cmd
+                webglOnRenderSpritesStart();
                 webglSpriteBatchOnStart(wglr);
                 webglSpriteBatchStart();
             } break;
@@ -114,6 +114,12 @@ void webglRenderGame (webgl_renderer *wglr, mem_arena *renderMemory) {
 
                 // flush leftover sprites
                 webglFlushSprites(wglr);
+            } break;
+            case RENDER_CMD_TYPE_BASIC_3D: {
+                webglOnRender3DStart();
+                render_cmd_basic_3d *cmd = (render_cmd_basic_3d *)renderCursor;
+                renderCursor = (u8 *)renderCursor + sizeof(render_cmd_basic_3d);
+                webglBasic3D(cmd->model, cmd->view, cmd->proj, cmd->textureID);
             } break;
         }
     }

@@ -5,11 +5,13 @@
 
 // Draws ONE 3D quad with camera, proj, texture, etc.
 typedef struct basic_3d_man {
-    mat4x4 modelMatrix;
-    mat4x4 viewMatrix;
-    mat4x4 projMatrix;
+    mat4x4 model;
+    mat4x4 view;
+    mat4x4 proj;
     char *textureKey;
     b32 shouldDraw;
 } basic_3d_man;
+
+void basic3DManInit (basic_3d_man *bm);
 
 #endif

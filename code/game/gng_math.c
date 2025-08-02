@@ -177,6 +177,39 @@ mat4x4 identityMatrix4x4 () {
     return result;
 }
 
+mat4x4 translationMatrix (f32 x, f32 y, f32 z) {
+    mat4x4 result = identityMatrix4x4();
+
+    result.m[3] = x;
+    result.m[7] = y;
+    result.m[11] = z;
+
+    return result;
+}
+
+mat4x4 scaleMatrix4x4 (f32 s) {
+    mat4x4 result = {};
+
+    result.m[0] = s;
+    result.m[5] = s;
+    result.m[10] = s;
+    result.m[15] = 1.0f;
+
+    return result;
+}
+
+mat4x4 scaleMatrix4x4XYZ (f32 x, f32 y, f32 z) {
+    mat4x4 result = {};
+
+    result.m[0] = x;
+    result.m[5] = y;
+    result.m[10] = z;
+    result.m[15] = 1.0f;
+
+    return result;
+}
+
+
 mat4x4 createViewMatrix (quat rotation, float x, float y, float z) {
     mat4x4 result = mat4x4FromQuat(rotation);
     result = mat4x4Transpose(result);
@@ -204,6 +237,15 @@ mat4x4 createPerspectiveMatrix (float nearPlane, float farPlane, float aspectRat
     result.m[11] = -2 * (farPlane * nearPlane) * nf;
     result.m[14] = -1.0f;
     result.m[15] = 0;
+
+    return result;
+}
+
+mat4x4 rotationMatrixFromAxisAngle (vec3 axis, f32 angle) {
+    mat4x4 result;
+
+    quat axisAngleQuaternion = quaternionFromAxisAngle(axis, angle);
+    result = mat4x4FromQuat(axisAngleQuaternion);
 
     return result;
 }
@@ -476,13 +518,52 @@ quat quaternionFromAxisAngle (vec3 axis, f32 angle) {
     return result;
 }
 
-quat quatMul (quaternion a, quaternion b) {
+quat quatMul (quat a, quat b) {
     quat result;
 
     result.w = a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z;
     result.x = a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y;
     result.y = a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x;
     result.z = a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w;
+
+    return result;
+}
+
+quat conjugate (quat a) {
+    quat result;
+
+    result.w = a.w;
+    result.x = -a.x;
+    result.y = -a.y;
+    result.z = -a.z;
+
+    return result;
+}
+
+vec3 rotateVectorByQuaternion (vec3 v, quat q) {
+    quat qConjugate = conjugate(q);
+
+    quat quaternionVersionOfVector;
+    quaternionVersionOfVector.w = 0.0f;
+    quaternionVersionOfVector.x = v.x;
+    quaternionVersionOfVector.y = v.y;
+    quaternionVersionOfVector.z = v.z;
+
+    quat newQ1 = quatMul(q, quaternionVersionOfVector);
+    quat newQ2 = quatMul(newQ1, qConjugate);
+
+    return (vec3){ .x=newQ2.x, .y=newQ2.y, .z=newQ2.z};
+}
+
+vec3 transformPoint (mat4x4 m, vec3 v, float* w){
+    vec3 result;
+
+    result.x = m.m[0]*v.x + m.m[1]*v.y +  m.m[2]*v.z +  m.m[3]*(*w);
+    result.y = m.m[4]*v.x + m.m[5]*v.y +  m.m[6]*v.z +  m.m[7]*(*w);
+    result.z = m.m[8]*v.x + m.m[9]*v.y + m.m[10]*v.z + m.m[11]*(*w);
+
+    // w as an out parameter so we don't have to make a vector4
+    *w = m.m[12]*v.x + m.m[13]*v.y + m.m[14]*v.z + m.m[15]*1.0f;
 
     return result;
 }

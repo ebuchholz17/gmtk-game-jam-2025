@@ -383,13 +383,17 @@ async function main (): Promise<void> {
             rendererResize: (windowWidth: number, windowHeight: number): void => {
                 resizeWebGL(windowWidth, windowHeight);
             },
-            webglOnRenderStart: (): void => { webglOnRenderStart(); },
+            webglOnRenderSpritesStart: (): void => { webglOnRenderSpritesStart(); },
+            webglOnRender3DStart: (): void => { webglOnRender3DStart(); },
             webglLoadTexture: (id: number, width: number, height: number, pixelDataPtr: number): void => {
                 webglLoadTexture(id, width, height, pixelDataPtr); 
             },
             webglSpriteBatchStart: (): void => { webglSpriteBatchStart(); },
             webglSpriteBatchFlush: (spriteDataPtr: number, numSprites: number, vertexSize: number, totalNumSpritesDrawn: number, textureIDs: number, numTextures: number): void => {
                 webglSpriteBatchFlush(spriteDataPtr, numSprites, vertexSize, totalNumSpritesDrawn, textureIDs, numTextures);
+            },
+            webglBasic3D: (modelMatrixPtr: number, viewMatrixPtr: number, projMatrixPtr: number, textureID: number): void => {
+                webglBasic3D(modelMatrixPtr, viewMatrixPtr, projMatrixPtr, textureID);
             }
         }
     };

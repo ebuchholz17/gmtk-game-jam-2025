@@ -24,6 +24,14 @@ typedef struct wglr_vertex {
 } wglr_vertex;
 #pragma pack(pop)
 
+// webgl format 3d vertex data
+#pragma pack(push, 1)
+typedef struct wglr_vertex_3d {
+    f32 pos[3];
+    f32 texCoords[2];
+} wglr_vertex_3d;
+#pragma pack(pop)
+
 #define MAX_NUM_SPRITES 10000
 
 typedef struct webgl_renderer {
@@ -40,9 +48,10 @@ typedef struct webgl_renderer {
 } webgl_renderer;
 
 
-void webglOnRenderStart (void);
+void webglOnRenderSpritesStart (void);
+void webglOnRender3DStart (void);
 void webglLoadTexture (u32 id, u32 width, u32 height, u8 *pixels);
 void webglSpriteBatchStart (void);
 void webglSpriteBatchFlush (u8 *spriteDataPtr, u32 numSprites, u32 vertexSize, u32 totalNumSpritesDrawn, u32 *textureIDs, u32 numTextures);
-
+void webglBasic3D (u8 *modelMatrixPtr, u8 *viewMatrixPtr, u8 *projMatrixPtr, u32 textureID);
 #endif

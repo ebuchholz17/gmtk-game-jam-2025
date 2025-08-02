@@ -15,6 +15,7 @@ typedef enum {
     RENDER_CMD_TYPE_SPRITE_BATCH_START,
     RENDER_CMD_TYPE_SPRITE_BATCH_DRAW,
     RENDER_CMD_TYPE_SPRITE_BATCH_END,
+    RENDER_CMD_TYPE_BASIC_3D,
     RENDER_CMD_TYPE_LOAD_TEXTURE
 } render_cmd_type;
 
@@ -33,6 +34,13 @@ typedef struct render_cmd_sprite_batch_draw {
     render_cmd_sprite_data *sprites;
     u32 numSprites;
 } render_cmd_sprite_batch_draw;
+
+typedef struct render_cmd_basic_3d {
+    f32 model[16];
+    f32 view[16];
+    f32 proj[16];
+    u32 textureID;
+} render_cmd_basic_3d;
 
 typedef struct render_cmd_load_texture {
     u32 id;

@@ -6,6 +6,7 @@
 #include "gng_platform.h"
 #include "gng_assets.h"
 #include "gng_sprites.h"
+#include "gng_3d.h"
 #include "gng_audio.h"
 #include "gng_virtual_input.h"
 
@@ -25,6 +26,7 @@ typedef struct gng_game_state {
     asset_man assetMan;
     sprite_man spriteMan;
     sound_man soundMan;
+    basic_3d_man basic3DMan;
 
     f32 t;
     virtual_input vInput;

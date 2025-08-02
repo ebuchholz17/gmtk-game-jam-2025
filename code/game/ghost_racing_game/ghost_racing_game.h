@@ -12,6 +12,7 @@ typedef struct DebugCamera {
 } DebugCamera;
 
 typedef struct GrGame {
+    DebugCamera debugCamera;
     b32 isInitialized;
 } GrGame;
 

@@ -4,7 +4,9 @@ readFile
 onError
 getMemCapacity
 rendererResize
-webglOnRenderStart
+webglOnRenderSpritesStart
+webglOnRender3DStart
 webglLoadTexture
 webglSpriteBatchStart
 webglSpriteBatchFlush
+webglBasic3D

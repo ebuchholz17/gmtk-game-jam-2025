@@ -120,6 +120,13 @@ mat4x4 identityMatrix4x4 () ;
 mat4x4 createViewMatrix (quat rotation, float x, float y, float z) ;
 mat4x4 createPerspectiveMatrix (float nearPlane, float farPlane, float aspectRatio, float tanfFovYOver2) ;
 quat quaternionFromAxisAngle (vec3 axis, f32 angle) ;
-quat quatMul (quaternion a, quaternion b) ;
+quat quatMul (quat a, quat b) ;
+vec3 rotateVectorByQuaternion (vec3 a, quat b) ;
+
+mat4x4 translationMatrix (f32 x, f32 y, f32 z) ;
+mat4x4 scaleMatrix4x4 (f32 s) ;
+mat4x4 scaleMatrix4x4XYZ (f32 x, f32 y, f32 z) ;
+mat4x4 rotationMatrixFromAxisAngle (vec3 axis, f32 angle);
+vec3 transformPoint (mat4x4 m, vec3 v, float* w);
 
 #endif

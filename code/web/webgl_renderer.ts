@@ -116,17 +116,36 @@ function initWebGL (canvas: HTMLCanvasElement, memory: Uint8Array): void {
     wglr.basic3DShader = compileAndLinkShader(gl, basic_3d_vertex_source, basic_3d_fragment_source);
 
     wglr.basic3DVertexBuffer = gl.createBuffer();
+    var basic3DData = [
+        -1.0, 1.0, 0.0,
+        0.0, 0.0,
+        //0.0, 0.0, 1.0,
+
+        1.0, 1.0, 0.0,
+        1.0, 0.0,
+        //0.0, 0.0, 1.0,
+
+        -1.0, -1.0, 0.0,
+        0.0, 1.0,
+        //0.0, 0.0, 1.0,
+
+        1.0, -1.0, 0.0,
+        1.0, 1.0,
+        //0.0, 0.0, 1.0,
+    ];
+    var basic3DDataArray = new Float32Array(basic3DData);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, wglr.basic3DVertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, 4 * 40, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, basic3DDataArray, gl.STATIC_DRAW);
 
     {
         let indices: number[] = [];
-        indices[6 + 0] = 4 + 0;
-        indices[6 + 1] = 4 + 2;
-        indices[6 + 2] = 4 + 1;
-        indices[6 + 3] = 4 + 1;
-        indices[6 + 4] = 4 + 2;
-        indices[6 + 5] = 4 + 3;
+        indices[0] = 0;
+        indices[1] = 2;
+        indices[2] = 1;
+        indices[3] = 1;
+        indices[4] = 2;
+        indices[5] = 3;
         wglr.basic3DIndexBuffer = createIndexBuffer(gl, indices);
     }
 }
@@ -136,16 +155,43 @@ function resizeWebGL(windowWidth: number, windowHeight: number): void{
     wglr.windowHeight = windowHeight;
 }
 
-function webglOnRenderStart (): void {
+function webglOnRenderSpritesStart (): void {
     let gl: WebGLRenderingContext = wglr.glContext;
     gl.viewport(0, 0, wglr.windowWidth, wglr.windowHeight);
-    //gl.enable(gl.DEPTH_TEST);
-    //gl.enable(gl.CULL_FACE);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
     gl.clearColor(0.05, 0.07, 0.16, 0.0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+}
+
+function webglOnRender3DStart (): void {
+    let gl: WebGLRenderingContext = wglr.glContext;
+
+    // NOTE(ebuchholz): hardcoded game size
+    let gameRatio = 356.0 / 200.0;
+    let windowRatio = wglr.windowWidth / wglr.windowHeight;
+
+    if (gameRatio > windowRatio) {
+        let viewportHeight = wglr.windowWidth / gameRatio;
+        let offset = (wglr.windowHeight - viewportHeight) / 2;
+        gl.viewport(0, offset, wglr.windowWidth, viewportHeight);
+    }
+    else {
+        let viewportWidth = wglr.windowHeight * gameRatio;
+        let offset = (wglr.windowWidth - viewportWidth) / 2;
+        gl.viewport(offset, 0, viewportWidth, wglr.windowHeight);
+    }
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    gl.clearColor(0.05, 0.07, 0.16, 0.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.disable(gl.BLEND);
+    //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 
 function webglLoadTexture (id: number, width: number, height: number, pixelDataPtr: number): void {
@@ -164,6 +210,83 @@ function webglLoadTexture (id: number, width: number, height: number, pixelDataP
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+function matrix4x4transpose (matrixBuffer: Float32Array) {
+    var floatBuffer = new Float32Array(16)
+
+    floatBuffer[0] = matrixBuffer[0];
+    floatBuffer[1] = matrixBuffer[4];
+    floatBuffer[2] = matrixBuffer[8];
+    floatBuffer[3] = matrixBuffer[12];
+
+    floatBuffer[4] = matrixBuffer[1];
+    floatBuffer[5] = matrixBuffer[5];
+    floatBuffer[6] = matrixBuffer[9];
+    floatBuffer[7] = matrixBuffer[13];
+
+    floatBuffer[8] = matrixBuffer[2];
+    floatBuffer[9] = matrixBuffer[6];
+    floatBuffer[10] = matrixBuffer[10];
+    floatBuffer[11] = matrixBuffer[14];
+
+    floatBuffer[12] = matrixBuffer[3];
+    floatBuffer[13] = matrixBuffer[7];
+    floatBuffer[14] = matrixBuffer[11];
+    floatBuffer[15] = matrixBuffer[15]
+
+    return floatBuffer;
+}
+
+function webglBasic3D (modelMatrixPtr: number, viewMatrixPtr: number, projMatrixPtr: number, 
+                       textureID: number): void 
+{
+    let gl: WebGLRenderingContext = wglr.glContext;
+
+    let program: WebGLProgram = wglr.basic3DShader.program;
+    gl.useProgram(program);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, wglr.basic3DVertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wglr.basic3DIndexBuffer);
+
+    var positionLocation = gl.getAttribLocation(program, "position");
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 20, 0);
+
+    var texCoordLocation = gl.getAttribLocation(program, "texCoords");
+    gl.enableVertexAttribArray(texCoordLocation);
+    gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 20, 12);
+
+    //var normalLocation = gl.getAttribLocation(program, "normal");
+    //gl.enableVertexAttribArray(normalLocation);
+    //gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 32, 20);
+
+    // TODO(ebuchholz): figure out how to do this without making new array buffer view every frame
+    var floatBuffer = new Float32Array(wglr.memoryView.buffer,
+                                       modelMatrixPtr,
+                                       16); //4x4 matrix
+    var modelMatrixLocation = gl.getUniformLocation(program, "modelMatrix");
+    gl.uniformMatrix4fv(modelMatrixLocation, false, matrix4x4transpose(floatBuffer));
+
+    floatBuffer = new Float32Array(wglr.memoryView.buffer,
+                                   viewMatrixPtr,
+                                   16); //4x4 matrix
+    var viewMatrixLocation = gl.getUniformLocation(program, "viewMatrix");
+    gl.uniformMatrix4fv(viewMatrixLocation, false, matrix4x4transpose(floatBuffer));
+
+    floatBuffer = new Float32Array(wglr.memoryView.buffer,
+                                   projMatrixPtr,
+                                   16); //4x4 matrix
+    var projMatrixLocation = gl.getUniformLocation(program, "projMatrix");
+    gl.uniformMatrix4fv(projMatrixLocation, false, matrix4x4transpose(floatBuffer));
+
+    var texture = wglr.textures[textureID];
+    var textureLocation = gl.getUniformLocation(program, "texture");
+    gl.uniform1i(textureLocation, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 }
 
 function webglSpriteBatchStart (): void {

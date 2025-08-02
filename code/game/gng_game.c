@@ -299,6 +299,7 @@ UPDATE_GNG_GAME(updateGNGGame) {
 
         spriteManInit(&state->spriteMan, &state->assetMan);
         soundManInit(&state->soundMan, &state->assetMan);
+        basic3DManInit(&state->basic3DMan);
 
         platAPI.consoleLog("game ready");
     }
@@ -439,19 +440,16 @@ UPDATE_GNG_GAME(updateGNGGame) {
             resetInput(input, &state->vInput);
         }
 
-        basic3DMan.shouldDraw = false;
+        basic3DMan->shouldDraw = false;
 
         drawGrGame(&state->grGame, platAPI);
-        
-        // TODO(ebuchholz): testing, remove
-        basic3DMan.shouldDraw = true;
-        mat4x4 view = createViewMatrix(quat rotation, float x, float y, float z) 
        
         sprite s = defaultSprite();
         s.pos.x = 100.0f;
         s.pos.y = 100.0f;
         s.rotation = 0.f;
-        s.textureKey = "track";
+        s.atlasKey = "game_atlas";
+        s.frameKey = "sponge_man";
         s.anchor = (vec2){ .x = 0.5f, .y = 0.5f };
         spriteManAddSprite(s);
 
@@ -549,90 +547,107 @@ UPDATE_GNG_GAME(updateGNGGame) {
         }
     }
 
-    spriteBatchStart(renderMemory);
+    if (basic3DMan->shouldDraw) {
+        render_cmd_header *header = (render_cmd_header *)allocMemory(renderMemory, sizeof(render_cmd_header));
+        header->type = RENDER_CMD_TYPE_BASIC_3D;
 
-    render_cmd_header *header = (render_cmd_header *)allocMemory(renderMemory, sizeof(render_cmd_header));
-    header->type = RENDER_CMD_TYPE_SPRITE_BATCH_DRAW;
+        render_cmd_basic_3d *cmd = (render_cmd_basic_3d *)allocMemory(renderMemory, sizeof(render_cmd_basic_3d));
 
-    render_cmd_sprite_batch_draw *cmd = (render_cmd_sprite_batch_draw *)allocMemory(renderMemory, sizeof(render_cmd_sprite_batch_draw));
-    cmd->numSprites = spriteMan->sprites.numValues;
+        copyMemory((u8 *)cmd->model, (u8 *)basic3DMan->model.m, sizeof(f32) * 16);
+        copyMemory((u8 *)cmd->view, (u8 *)basic3DMan->view.m, sizeof(f32) * 16);
+        copyMemory((u8 *)cmd->proj, (u8 *)basic3DMan->proj.m, sizeof(f32) * 16);
 
-    render_cmd_sprite_data *spriteDatas = (render_cmd_sprite_data *)allocMemory(renderMemory, cmd->numSprites * sizeof(render_cmd_sprite_data));
-    cmd->sprites = spriteDatas;
-
-    for (u32 spriteIndex = 0; spriteIndex < spriteMan->sprites.numValues; spriteIndex++) {
-        sprite *s = &spriteMan->sprites.values[spriteIndex];
-
-        mat3x3 spriteTransform = mat3x3Identity();
-        spriteTransform.m[2] = -s->anchor.x;
-        spriteTransform.m[5] = -s->anchor.y;
-
-        f32 scaledWidth = s->scale * s->width;
-        f32 scaledHeight = s->scale * s->height;
-
-        mat3x3 scaleMatrix = mat3x3ScaleXY(scaledWidth, scaledHeight);
-        spriteTransform = mat3x3MatrixMul(scaleMatrix, spriteTransform);
-        spriteTransform = mat3x3MatrixMul(mat3x3Rotate2PI(s->rotation), spriteTransform);
-        spriteTransform = mat3x3MatrixMul(mat3x3Translate(s->pos.x, s->pos.y), spriteTransform);
-
-        spriteTransform = mat3x3MatrixMul(s->parentTransform, spriteTransform);
-
-        render_cmd_sprite_data *spriteData = &spriteDatas[spriteIndex];
-
-        vec2 pos00 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 0.0f, .y = 0.0f });
-        spriteData->positions[0] = pos00.x;
-        spriteData->positions[1] = pos00.y;
-        spriteData->positions[2] = 1.0f;
-
-        vec2 pos01 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 1.0f, .y = 0.0f });
-        spriteData->positions[3] = pos01.x;
-        spriteData->positions[4] = pos01.y;
-        spriteData->positions[5] = 1.0f;
-
-        vec2 pos10 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 0.0f, .y = 1.0f });
-        spriteData->positions[6] = pos10.x;
-        spriteData->positions[7] = pos10.y;
-        spriteData->positions[8] = 1.0f;
-
-        vec2 pos11 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 1.0f, .y = 1.0f });
-        spriteData->positions[9]  = pos11.x;
-        spriteData->positions[10] = pos11.y;
-        spriteData->positions[11] = 1.0f;
-
-        spriteData->texCoords[0] = s->frameCorners[0].x;
-        spriteData->texCoords[1] = s->frameCorners[0].y;
-        spriteData->texCoords[2] = s->frameCorners[1].x;
-        spriteData->texCoords[3] = s->frameCorners[1].y;
-        spriteData->texCoords[4] = s->frameCorners[2].x;
-        spriteData->texCoords[5] = s->frameCorners[2].y;
-        spriteData->texCoords[6] = s->frameCorners[3].x;
-        spriteData->texCoords[7] = s->frameCorners[3].y;
-
-        f32 red = (f32)((s->tint >> 16) & (0xff)) / 255.0f;
-        f32 green = (f32)((s->tint >> 8) & (0xff)) / 255.0f;
-        f32 blue = (f32)((s->tint) & (0xff)) / 255.0f;
-
-        spriteData->colors[0]  = red;
-        spriteData->colors[1]  = blue;
-        spriteData->colors[2]  = green;
-        spriteData->colors[3]  = s->alpha;
-        spriteData->colors[4]  = red;
-        spriteData->colors[5]  = blue;
-        spriteData->colors[6]  = green;
-        spriteData->colors[7]  = s->alpha;
-        spriteData->colors[8]  = red;
-        spriteData->colors[9]  = blue;
-        spriteData->colors[10] = green;
-        spriteData->colors[11] = s->alpha;
-        spriteData->colors[12] = red;
-        spriteData->colors[13] = blue;
-        spriteData->colors[14] = green;
-        spriteData->colors[15] = s->alpha;
-
-        spriteData->textureID = s->textureID;
+        texture_asset *texAsset = texture_asset_hash_mapGetPtr(&state->assetMan.textures, basic3DMan->textureKey);
+        ASSERT(texAsset != 0);
+        cmd->textureID = texAsset->id;
     }
 
-    spriteBatchEnd(renderMemory);
+    {
+        spriteBatchStart(renderMemory);
+
+        render_cmd_header *header = (render_cmd_header *)allocMemory(renderMemory, sizeof(render_cmd_header));
+        header->type = RENDER_CMD_TYPE_SPRITE_BATCH_DRAW;
+
+        render_cmd_sprite_batch_draw *cmd = (render_cmd_sprite_batch_draw *)allocMemory(renderMemory, sizeof(render_cmd_sprite_batch_draw));
+        cmd->numSprites = spriteMan->sprites.numValues;
+
+        render_cmd_sprite_data *spriteDatas = (render_cmd_sprite_data *)allocMemory(renderMemory, cmd->numSprites * sizeof(render_cmd_sprite_data));
+        cmd->sprites = spriteDatas;
+
+        for (u32 spriteIndex = 0; spriteIndex < spriteMan->sprites.numValues; spriteIndex++) {
+            sprite *s = &spriteMan->sprites.values[spriteIndex];
+
+            mat3x3 spriteTransform = mat3x3Identity();
+            spriteTransform.m[2] = -s->anchor.x;
+            spriteTransform.m[5] = -s->anchor.y;
+
+            f32 scaledWidth = s->scale * s->width;
+            f32 scaledHeight = s->scale * s->height;
+
+            mat3x3 scaleMatrix = mat3x3ScaleXY(scaledWidth, scaledHeight);
+            spriteTransform = mat3x3MatrixMul(scaleMatrix, spriteTransform);
+            spriteTransform = mat3x3MatrixMul(mat3x3Rotate2PI(s->rotation), spriteTransform);
+            spriteTransform = mat3x3MatrixMul(mat3x3Translate(s->pos.x, s->pos.y), spriteTransform);
+
+            spriteTransform = mat3x3MatrixMul(s->parentTransform, spriteTransform);
+
+            render_cmd_sprite_data *spriteData = &spriteDatas[spriteIndex];
+
+            vec2 pos00 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 0.0f, .y = 0.0f });
+            spriteData->positions[0] = pos00.x;
+            spriteData->positions[1] = pos00.y;
+            spriteData->positions[2] = 1.0f;
+
+            vec2 pos01 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 1.0f, .y = 0.0f });
+            spriteData->positions[3] = pos01.x;
+            spriteData->positions[4] = pos01.y;
+            spriteData->positions[5] = 1.0f;
+
+            vec2 pos10 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 0.0f, .y = 1.0f });
+            spriteData->positions[6] = pos10.x;
+            spriteData->positions[7] = pos10.y;
+            spriteData->positions[8] = 1.0f;
+
+            vec2 pos11 = vec2Mat3x3Mul(spriteTransform, (vec2){ .x = 1.0f, .y = 1.0f });
+            spriteData->positions[9]  = pos11.x;
+            spriteData->positions[10] = pos11.y;
+            spriteData->positions[11] = 1.0f;
+
+            spriteData->texCoords[0] = s->frameCorners[0].x;
+            spriteData->texCoords[1] = s->frameCorners[0].y;
+            spriteData->texCoords[2] = s->frameCorners[1].x;
+            spriteData->texCoords[3] = s->frameCorners[1].y;
+            spriteData->texCoords[4] = s->frameCorners[2].x;
+            spriteData->texCoords[5] = s->frameCorners[2].y;
+            spriteData->texCoords[6] = s->frameCorners[3].x;
+            spriteData->texCoords[7] = s->frameCorners[3].y;
+
+            f32 red = (f32)((s->tint >> 16) & (0xff)) / 255.0f;
+            f32 green = (f32)((s->tint >> 8) & (0xff)) / 255.0f;
+            f32 blue = (f32)((s->tint) & (0xff)) / 255.0f;
+
+            spriteData->colors[0]  = red;
+            spriteData->colors[1]  = blue;
+            spriteData->colors[2]  = green;
+            spriteData->colors[3]  = s->alpha;
+            spriteData->colors[4]  = red;
+            spriteData->colors[5]  = blue;
+            spriteData->colors[6]  = green;
+            spriteData->colors[7]  = s->alpha;
+            spriteData->colors[8]  = red;
+            spriteData->colors[9]  = blue;
+            spriteData->colors[10] = green;
+            spriteData->colors[11] = s->alpha;
+            spriteData->colors[12] = red;
+            spriteData->colors[13] = blue;
+            spriteData->colors[14] = green;
+            spriteData->colors[15] = s->alpha;
+
+            spriteData->textureID = s->textureID;
+        }
+
+        spriteBatchEnd(renderMemory);
+    }
 }
 
 GET_SOUND_SAMPLES_GNG_GAME(getSoundSamplesGNGGame) {
