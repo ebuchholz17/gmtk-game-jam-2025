@@ -33,7 +33,7 @@ vec2 trackToPixelCoords (vec2 trackCoords) {
     };
 }
 
-void startGame (void) {
+void startGame (mem_arena *tempMemory) {
     DebugCamera *debugCamera = &grGame->debugCamera;
     vec2 startPos = pixelToTrackCoords((vec2){ .x = 489.f, .y=2884.f });
     debugCamera->pos = (vec3){
@@ -54,10 +54,15 @@ void startGame (void) {
 
     grGame->lapZoneIndex = 0;
     grGame->lap = 1;
+    grGame->currentLapTime = 0.f;
+    grGame->lapTimeIndex = 0;
+    grGame->hasBestLapTime = false;
+
+    grGame->ghostIndex = 0;
 }
 
 
-void initGrGame (GrGame *grg, mem_arena *memory) {
+void initGrGame (GrGame *grg, mem_arena *memory, mem_arena *tempMemory) {
     grGame = grg;
     zeroMemory((u8 *)grGame, sizeof(GrGame));
 
@@ -76,9 +81,11 @@ void initGrGame (GrGame *grg, mem_arena *memory) {
         };
         Wall_listPush(&grGame->walls, wall);
     }
+
+    grGame->ghostData = allocMemory(memory, sizeof(GhostData) * 50);
     
     // startGame function to init (or restart) game state
-    startGame();
+    startGame(tempMemory);
 
     grGame->isInitialized = true;
 }
@@ -139,6 +146,8 @@ CarInput handleInput (game_input *input, virtual_input *vInput) {
 
 // TODO(ebuchholz): handle going backwards?
 void handleLaps (void) {
+    grGame->lapFrame++;
+
     vec2 carPixelPos = trackToPixelCoords(grGame->playerCar.trackPos);
     for (i32 i = 0; i < ARRAY_COUNT(lapZones); i++) {
         rect *lapZone = &lapZones[i];
@@ -148,6 +157,25 @@ void handleLaps (void) {
 
             if (grGame->lapZoneIndex == 0 && lastIndex == ARRAY_COUNT(lapZones) - 1) {
                 grGame->lap++;
+                grGame->lapFrame = 0;
+                grGame->ghostIndex++;
+                if (grGame->ghostIndex > 50) {
+                    grGame->ghostIndex = 50;
+                }
+
+                if (grGame->hasBestLapTime) {
+                    if (grGame->currentLapTime < grGame->bestLapTime) {
+                        grGame->bestLapTime = grGame->currentLapTime;
+                    }
+                }
+                else {
+                    grGame->hasBestLapTime = true;
+                    grGame->bestLapTime = grGame->currentLapTime;
+                }
+
+                grGame->lapTimes[grGame->lapTimeIndex] = grGame->currentLapTime;
+                grGame->lapTimeIndex = (grGame->lapTimeIndex + 1) % 3;
+                grGame->currentLapTime = 0.f;
             }
         }
     }
@@ -315,6 +343,26 @@ void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt
     //vec3 lookAtPos = vec3Add(trackPos3D, vec3ScalarMul(25.0f, forward3D));
     //grGame->debugCamera.rotation = createLookAtQuaternion(grGame->debugCamera.pos.x, grGame->debugCamera.pos.y, grGame->debugCamera.pos.z,
     //                                                        lookAtPos.x, lookAtPos.y, lookAtPos.z);
+    //                                                        o
+    grGame->currentLapTime += dt;
+
+    GhostData *currentData = &grGame->ghostData[grGame->ghostIndex];
+    if (currentData->entryIndex < 3 * 60 * 60) {
+        currentData->entries[currentData->entryIndex++] = (GhostDataEntry){
+            .pos = grGame->playerCar.trackPos,
+            .forward = grGame->playerCar.forward,
+        };
+    }
+
+    for (i32 i = 0; i < (grGame->lap - 1) && i < 50; i++) {
+        GhostRacer *racer = &grGame->ghostRacers[i];
+        racer->ghostIndex = i;
+        GhostData *data = &grGame->ghostData[racer->ghostIndex];
+        racer->frame++;
+        if (racer->frame >= data->entryIndex) {
+            racer->frame = 0;
+        }
+    }
 }
 
 void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
@@ -340,6 +388,32 @@ void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
     }
 }
 
+void drawTime (f32 timeF, f32 x, f32 y) {
+    u32 time = (u32)timeF;
+    u32 seconds = time % 60;
+    f32 millisecondsF = timeF - (f32)time;
+    u32 milliseconds = (u32)(millisecondsF * 100.f);
+    u32 minutes = time / 60;
+    char *timeString = tempStringFromI32((i32)minutes);
+    timeString = tempStringAppend(timeString, ":");
+    if (seconds < 10) {
+        timeString = tempStringAppend(timeString, "0");
+    }
+    timeString = tempStringAppend(timeString, tempStringFromI32((i32)seconds));
+    timeString = tempStringAppend(timeString, ".");
+    if (milliseconds < 10) {
+        timeString = tempStringAppend(timeString, "0");
+    }
+    timeString = tempStringAppend(timeString, tempStringFromI32((i32)milliseconds));
+
+    spriteManAddText((sprite_text){
+        .x = x,
+        .y = y,
+        .text = timeString,
+        .fontKey = "font"
+    });
+}
+
 void drawGrGame (GrGame *grg, plat_api platAPI) { 
         // TODO(ebuchholz): testing, remove
         basic3DMan->shouldDraw = true;
@@ -356,70 +430,107 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
                                                             lookAtPos.x, lookAtPos.y, lookAtPos.z,
                                                                 0.0f, 1.0f, 0.f);
 
-        // NOTE(ebuchholz): copy-pasted from gng_game
-        f32 gameWidth = 356.0f;
-        f32 gameHeight = 200.0f;
+    // NOTE(ebuchholz): copy-pasted from gng_game
+    f32 gameWidth = 356.0f;
+    f32 gameHeight = 200.0f;
 
-        float nearViewDist = 0.1f;
-        float farViewDist = 1000.0f;
-        float hFOV = 80.0f;
-        float viewRatio = gameWidth / gameHeight;
+    float nearViewDist = 0.1f;
+    float farViewDist = 1000.0f;
+    float hFOV = 80.0f;
+    float viewRatio = gameWidth / gameHeight;
 
-       // float fovy = 2.0f * atanf(tanf(fov * (PI / 180.0f) / 2.0f) * (1.0f / aspectRatio));
-       // float f = 1.0f / <tanf(fovy / 2.0f)>; <-- 4th param
-       // float nf = 1.0f / (farPlane - nearPlane);
-       
-        // 1.234
-        mat4x4 proj = createPerspectiveMatrix(nearViewDist, farViewDist, viewRatio, 0.8f);
+   // float fovy = 2.0f * atanf(tanf(fov * (PI / 180.0f) / 2.0f) * (1.0f / aspectRatio));
+   // float f = 1.0f / <tanf(fovy / 2.0f)>; <-- 4th param
+   // float nf = 1.0f / (farPlane - nearPlane);
+   
+    // 1.234
+    mat4x4 proj = createPerspectiveMatrix(nearViewDist, farViewDist, viewRatio, 0.8f);
 
-        basic3DMan->view = view;
-        basic3DMan->proj = proj;
-        basic3DMan->textureKey = "track";
+    basic3DMan->view = view;
+    basic3DMan->proj = proj;
+    basic3DMan->textureKey = "track";
 
-        mat4x4 model = identityMatrix4x4();
-        mat4x4 scale = scaleMatrix4x4(500.f);
-        mat4x4 rot90 = rotationMatrixFromAxisAngle((vec3){1.f, 0.f, 0.f}, -0.25);
-        mat4x4 trans = translationMatrix(500.0f, 0.0f, 500.0f);
-        model = mat4x4MatrixMul(scale, model);
-        model = mat4x4MatrixMul(rot90, model);
-        model = mat4x4MatrixMul(trans, model);
+    mat4x4 model = identityMatrix4x4();
+    mat4x4 scale = scaleMatrix4x4(500.f);
+    mat4x4 rot90 = rotationMatrixFromAxisAngle((vec3){1.f, 0.f, 0.f}, -0.25);
+    mat4x4 trans = translationMatrix(500.0f, 0.0f, 500.0f);
+    model = mat4x4MatrixMul(scale, model);
+    model = mat4x4MatrixMul(rot90, model);
+    model = mat4x4MatrixMul(trans, model);
 
-        basic3DMan->model = model;
+    basic3DMan->model = model;
 
-        drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f);
+    drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f);
 
+
+    for (i32 i = 0; i < (grGame->lap - 1) && i < 50; i++) {
+        GhostRacer *racer = &grGame->ghostRacers[i];
+        GhostData *data = &grGame->ghostData[racer->ghostIndex];
+        GhostDataEntry *entry = &data->entries[racer->frame];
+        drawBillBoard(entry->pos, "car_0", 50.0f);
+    }
+
+
+    {
+        sprite s = defaultSprite();
+        s.pos = (vec2){ .x=56.f, .y=201.0f};
+        s.atlasKey = "game_atlas";
+        s.frameKey = "speedometer_base";
+        s.anchor = (vec2){ .x=0.5f, .y=1.0f };
+        spriteManAddSprite(s);
+    }
+
+    f32 speedRotatePercent = grGame->playerCar.speed / 257.0f;
+    f32 rotationRange = 0.65;
+    f32 baseRotation = 0.425;
+
+    {
+        sprite s = defaultSprite();
+        s.pos = (vec2){ .x=56.f, .y=177.0f};
+        s.atlasKey = "game_atlas";
+        s.frameKey = "needle";
+        s.anchor = (vec2){ .x=0.5f, .y=0.5f };
+        s.rotation = baseRotation + rotationRange * speedRotatePercent;
+        spriteManAddSprite(s);
+    }
+
+    {
+        char *text = tempStringAppend("Lap ", tempStringFromI32(grGame->lap));
+        sprite_text labelText = {
+            .text = text,
+            .fontKey = "font",
+            .x = 244.0f,
+            .y = 188.0f
+        };
+        //centerText(&labelText);
+        spriteManAddText(labelText);
+    }
+
+    drawTime(grGame->currentLapTime, 294.0f, 188.0f);
+
+    i32 lapIndex = grGame->lapTimeIndex - 1;
+    f32 timeY = 188.0f;
+    for (i32 i = 0; i < (grGame->lap - 1) && i < 3; i++) {
+        if (lapIndex < 0) { lapIndex += 3; }
+        f32 time = grGame->lapTimes[lapIndex];
+        timeY -= 12.0f;
+        drawTime(time, 294.0f, timeY);
+        lapIndex = lapIndex - 1;
+    }
+
+    timeY -= 12.0f;
+    if (grGame->hasBestLapTime) {
         {
-            sprite s = defaultSprite();
-            s.pos = (vec2){ .x=64.f, .y=201.0f};
-            s.atlasKey = "game_atlas";
-            s.frameKey = "speedometer_base";
-            s.anchor = (vec2){ .x=0.5f, .y=1.0f };
-            spriteManAddSprite(s);
-        }
-
-        f32 speedRotatePercent = grGame->playerCar.speed / 257.0f;
-        f32 rotationRange = 0.65;
-        f32 baseRotation = 0.425;
-
-        {
-            sprite s = defaultSprite();
-            s.pos = (vec2){ .x=64.f, .y=177.0f};
-            s.atlasKey = "game_atlas";
-            s.frameKey = "needle";
-            s.anchor = (vec2){ .x=0.5f, .y=0.5f };
-            s.rotation = baseRotation + rotationRange * speedRotatePercent;
-            spriteManAddSprite(s);
-        }
-
-        {
-            char *text = tempStringAppend("Lap ", tempStringFromI32(grGame->lap));
+            char *text = "Best";
             sprite_text labelText = {
                 .text = text,
                 .fontKey = "font",
-                .x = 260.0f,
-                .y = 188.0f
+                .x = 244.0f,
+                .y = timeY
             };
             //centerText(&labelText);
             spriteManAddText(labelText);
         }
+        drawTime(grGame->bestLapTime, 294.0f, timeY);
+    }
 }

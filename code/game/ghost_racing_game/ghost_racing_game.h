@@ -33,6 +33,24 @@ typedef struct Wall {
 #define LIST_TYPE Wall
 #include "../list.h"
 
+typedef struct GhostDataEntry {
+    vec2 pos;
+    vec2 forward;
+} GhostDataEntry;
+
+typedef struct GhostData {
+    GhostDataEntry entries[3 * 60 * 60];
+    i32 entryIndex;
+} GhostData;
+
+typedef struct GhostRacer {
+    i32 ghostIndex;
+    i32 frame;
+} GhostRacer;
+
+#define LIST_TYPE GhostData
+#include "../list.h"
+
 typedef struct GrGame {
     DebugCamera debugCamera;
     b32 isInitialized;
@@ -42,6 +60,17 @@ typedef struct GrGame {
 
     i32 lapZoneIndex;
     i32 lap;
+
+    f32 currentLapTime;
+    f32 lapTimes[3];
+    i32 lapTimeIndex;
+    f32 bestLapTime;
+    b32 hasBestLapTime;
+
+    GhostData *ghostData;
+    GhostRacer ghostRacers[50];
+    i32 ghostIndex;
+    i32 lapFrame;
 } GrGame;
 
 #endif

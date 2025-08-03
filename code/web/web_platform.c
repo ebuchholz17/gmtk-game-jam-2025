@@ -44,9 +44,9 @@ WASM_EXPORT void initGame (void) {
    webAllocMemory(100 * 1024 * 1024);
    memStart = memCurrent; 
 
-   u32 mainMemorySize = 10 * 1024 * 1024;
+   u32 mainMemorySize = 50 * 1024 * 1024;
    u32 assetMemorySize = 100 * 1024 * 1024;
-   u32 scratchMemorySize = 10 * 1024 * 1024;
+   u32 scratchMemorySize = 50 * 1024 * 1024;
 
    platAPI = (plat_api){
        .consoleLog = consoleLog,

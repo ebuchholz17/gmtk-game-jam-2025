@@ -408,7 +408,7 @@ UPDATE_GNG_GAME(updateGNGGame) {
 
     if (state->assetMan.allFilesLoaded) {
         if (!state->grGame.isInitialized) {
-            initGrGame(&state->grGame, &state->memory);
+            initGrGame(&state->grGame, &state->memory, &scratchMemory);
         }
         
         if (platAPI.hasTouchControls) {
@@ -419,24 +419,14 @@ UPDATE_GNG_GAME(updateGNGGame) {
         while (state->t > 1000.0f) {
             state->t -= 1000.0f;
         }
-        f32 remainingTime = dt;
-        remainingTime = remainingTime > 0.2f ? 0.2f : remainingTime;
+        state->accTime += dt;
         f32 updateDelta = (1.0f / 60.0f);
 
         spriteManPushTransform((sprite_transform){ .pos = gameOrigin, .scale = gameScale });
 
-        while (remainingTime > 0) {
-            f32 timeStep;
-            if (remainingTime >= updateDelta) {
-                timeStep = updateDelta;
-            }
-            else {
-                timeStep = remainingTime;
-            }
-            remainingTime -= updateDelta;
-
-            updateGrGame(&state->grGame, input, &state->vInput, timeStep, platAPI, &state->memory);
-
+        while (state->accTime > updateDelta) {
+            updateGrGame(&state->grGame, input, &state->vInput, updateDelta, platAPI, &state->memory);
+            state->accTime -= updateDelta;
             resetInput(input, &state->vInput);
         }
 

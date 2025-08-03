@@ -33,6 +33,7 @@ typedef struct gng_game_state {
 
     GrGame grGame;
 
+    f32 accTime;
     f32 soundT;
 
 } gng_game_state;
