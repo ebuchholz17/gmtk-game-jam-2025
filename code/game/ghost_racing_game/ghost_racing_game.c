@@ -1,6 +1,7 @@
 #include "ghost_racing_game.h"
 
 #include "../gng_assets.h"
+#include "../gng_audio.h"
 #include "../gng_bool.h"
 #include "../gng_math.h"
 #include "../gng_memory.h"
@@ -16,6 +17,7 @@
 #include "atan.c"
 
 extern basic_3d_man *basic3DMan;
+extern sound_man *soundMan;
 extern sprite_man *spriteMan;
 
 GrGame *grGame;
@@ -308,6 +310,8 @@ void steerCar (CarInput *input, f32 dt) {
     else if (!grGame->boosting) {
         grGame->playerCar.speed -= 5.0f * dt;
     }
+    grGame->wasThrottle = input->throttle;
+
 
     if (input->brake) {
         if (grGame->boosting) {
@@ -362,10 +366,15 @@ void steerCar (CarInput *input, f32 dt) {
     }
 
     if (playerCar->wheel < -maxWheel) {
+        grGame->screeching = true;
         playerCar->wheel = -maxWheel;
     }
-    if (playerCar->wheel > maxWheel) {
+    else if (playerCar->wheel > maxWheel) {
+        grGame->screeching = true;
         playerCar->wheel = maxWheel;
+    }
+    else {
+        grGame->screeching = false;
     }
 
     if (playerCar->wheel != 0.0f) {
@@ -480,6 +489,8 @@ void carUpdate  (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, 
         grGame->accelTimer = 0.2f;
         grGame->boostCooldown = 0.33f;
         grGame->boostDuration = 2.0f;
+
+                soundManPlaySound("laser4", false);
             }
         }
         else {
@@ -509,6 +520,24 @@ void carUpdate  (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, 
         grGame->boostDuration = 0.0f;
         grGame->boosting = false;
     }
+
+    if (grGame->playerCar.speed > 1.0f) {
+        if (grGame->screeching) {
+            soundManStopSound("engine");
+            if (!soundManIsPlaying("screech")) {
+                soundManPlaySound("screech", true);
+            }
+        }
+        else {
+            soundManStopSound("screech");
+            if (!soundManIsPlaying("engine")) {
+                soundManPlaySound("engine", true);
+            }
+        }
+    }
+    else {
+            soundManStopSound("engine");
+    }
 }
 
 void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
@@ -536,7 +565,7 @@ void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt
     }
 }
 
-void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale, f32 alpha, f32 y) {
+void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale, f32 alpha, f32 y, Billboard_list *billboards) {
     mat4x4 view = basic3DMan->view;
     mat4x4 proj = basic3DMan->proj;
     mat4x4 camMatrix = mat4x4MatrixMul(proj, view);
@@ -556,7 +585,13 @@ void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale, f32 alpha, f32 y) 
         s.atlasKey = "game_atlas";
         s.frameKey = frameKey;
         s.anchor = (vec2){ .x = 0.5f, .y = 1.0f };
-        spriteManAddSprite(s);
+        Billboard b= (Billboard){
+            .s = s,
+            .z = z
+        };
+        Billboard_listPush(billboards, b);
+
+        //spriteManAddSprite(s);
     }
 }
 
@@ -609,14 +644,30 @@ void centerText (sprite_text *text) {
     text->y -= 4.0f;
 }
 
-void drawCars (GrGame *grg, plat_api platAPI) {
-        // TODO(ebuchholz): testing, remove
-        basic3DMan->shouldDraw = true;
-        //mat4x4 view = createViewMatrix(quat rotation, float x, float y, float z) ;
-        mat4x4 view = createViewMatrix(grGame->debugCamera.rotation, 
-                                       grGame->debugCamera.pos.x,
-                                       grGame->debugCamera.pos.y,
-                                       grGame->debugCamera.pos.z);
+void sortBillboards (Billboard_list *billboards) {
+    for (int i = 0; i < billboards->numValues; ++i) {
+        for (int j = i; j > 0; --j) {
+            Billboard first = billboards->values[j-1];
+            Billboard second = billboards->values[j];
+
+            if (second.z < first.z) {
+                billboards->values[j-1] = second;
+                billboards->values[j] = first;
+            }
+        }
+    }
+}
+
+void drawCars (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
+    Billboard_list billboards = Billboard_listInit(tempMemory, 1000);
+
+    // TODO(ebuchholz): testing, remove
+    basic3DMan->shouldDraw = true;
+    //mat4x4 view = createViewMatrix(quat rotation, float x, float y, float z) ;
+    mat4x4 view = createViewMatrix(grGame->debugCamera.rotation, 
+                                   grGame->debugCamera.pos.x,
+                                   grGame->debugCamera.pos.y,
+                                   grGame->debugCamera.pos.z);
 
     vec3 trackPos3D = (vec3){.x=grGame->playerCar.trackPos.x, .y=0.f, .z=grGame->playerCar.trackPos.y};
     vec3 forward3D = (vec3){.x=grGame->playerCar.forward.x, .y=0.f, .z=grGame->playerCar.forward.y};
@@ -655,7 +706,19 @@ void drawCars (GrGame *grg, plat_api platAPI) {
 
     basic3DMan->model = model;
 
-    drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f, 1.0f, 0.0f);
+    for (i32 i = 0; i < ARRAY_COUNT(treeLocs); i++) {
+        drawBillBoard(pixelToTrackCoords(treeLocs[i]), "tree", 100.0f, 1.0f, 0.0f, &billboards);
+    }
+
+    char *playerFrame = "car_0";
+    if (grGame->playerCar.wheel >= 0.5f) {
+        playerFrame = "car_1";
+    }
+    if (grGame->playerCar.wheel <= -0.5f) {
+        playerFrame = "car_7";
+    }
+    drawBillBoard(grGame->playerCar.trackPos, playerFrame, 50.0f, 1.0f, 0.0f, &billboards);
+
     if (grGame->boosting) {
         GhostData *data = &grGame->ghostData[grGame->ghostIndex];
         if (data->entryIndex > 5) {
@@ -669,7 +732,7 @@ void drawCars (GrGame *grg, plat_api platAPI) {
                     t += 0.33f;
                     vec2 amt = vec2ScalarMul(t, entryToLast);
                     vec2 newPos = vec2Add(last, amt);
-                    drawBillBoard(newPos, "ghost_0", 50.0f, 0.5f, 0.0f);
+                    drawBillBoard(newPos, "ghost_0", 50.0f, 0.5f, 0.0f, &billboards);
                 }
                 last = entryPos;
             }
@@ -680,15 +743,20 @@ void drawCars (GrGame *grg, plat_api platAPI) {
         GhostRacer *racer = &grGame->ghostRacers[i];
         GhostData *data = &grGame->ghostData[racer->ghostIndex];
         GhostDataEntry *entry = &data->entries[racer->frame];
-        drawBillBoard(entry->pos, "ghost_0", 50.0f, 0.75f, 0.0f);
+        drawBillBoard(entry->pos, "ghost_0", 50.0f, 0.75f, 0.0f, &billboards);
 
         if (racer->inRange) {
             char *inputFrame = "a_key";
             if (grGame->inputSource == INPUT_SOURCE_GAMEPAD || grGame->inputSource == INPUT_SOURCE_VIRTUAL) {
                 inputFrame = "x_button";
             }
-            drawBillBoard(entry->pos,inputFrame, 70.0f, 1.0f, 5.0f);
+            drawBillBoard(entry->pos,inputFrame, 70.0f, 1.0f, 5.0f, &billboards);
         }
+    }
+
+    sortBillboards(&billboards);
+    for (i32 i = 0; i < billboards.numValues; i++) {
+        spriteManAddSprite(billboards.values[i].s);
     }
 
     {
@@ -769,7 +837,7 @@ void drawCars (GrGame *grg, plat_api platAPI) {
     }
 }
 
-void drawGrGame (GrGame *grg, plat_api platAPI) { 
+void drawGrGame (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) { 
     switch (grg->gameState) {
         case GR_GAME_STATE_TITLE: {
             {
@@ -797,7 +865,7 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
             }
         } break;
         case GR_GAME_STATE_MAIN: {
-            drawCars(grg, platAPI);
+            drawCars(grg, platAPI, tempMemory);
         } break;
         case GR_GAME_STATE_WIN: {
             {

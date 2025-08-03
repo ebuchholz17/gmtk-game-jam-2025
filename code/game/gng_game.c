@@ -274,6 +274,27 @@ UPDATE_GNG_GAME(updateGNGGame) {
             .loaded = false,
             .key = "track"
         });
+        asset_to_load_listPush(assetList, (asset_to_load){
+            .name = "engine",
+            .path = "assets/engine.wav",
+            .type = ASSET_TO_LOAD_TYPE_WAV,
+            .loaded = false,
+            .key = "engine"
+        });
+        asset_to_load_listPush(assetList, (asset_to_load){
+            .name = "screech",
+            .path = "assets/screech.wav",
+            .type = ASSET_TO_LOAD_TYPE_WAV,
+            .loaded = false,
+            .key = "screech"
+        });
+        asset_to_load_listPush(assetList, (asset_to_load){
+            .name = "laser4",
+            .path = "assets/laser4.wav",
+            .type = ASSET_TO_LOAD_TYPE_WAV,
+            .loaded = false,
+            .key = "laser4"
+        });
 
         // Sponge frame data
         //key_path_pair hitboxFiles[] = {
@@ -432,7 +453,7 @@ UPDATE_GNG_GAME(updateGNGGame) {
 
         basic3DMan->shouldDraw = false;
 
-        drawGrGame(&state->grGame, platAPI);
+        drawGrGame(&state->grGame, platAPI, &scratchMemory);
        
         spriteManPopMatrix();
 
@@ -657,7 +678,19 @@ GET_SOUND_SAMPLES_GNG_GAME(getSoundSamplesGNGGame) {
 
                 sound->currentSampleIndex++;
                 if (sound->currentSampleIndex >= soundAsset->numSamples) {
-                    sound->active = false;
+                    if (sound->loop) {
+                        sound->currentSampleIndex = 0;
+                    }
+                    else {
+                        sound->active = false;
+                    }
+                }
+
+                if (sound->stopped) {
+                    sound->fadeT -= 0.008f;
+                    if (sound->fadeT <= 0.0f) {
+                        sound->active = false;
+                    }
                 }
             }
         }

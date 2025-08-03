@@ -2,6 +2,7 @@
 #define GHOST_RACING_GAME_H
 
 #include "../gng_math.h"
+#include "../gng_sprites.h"
 #include "../gng_types.h"
 
 typedef struct DebugCamera {
@@ -65,6 +66,14 @@ typedef enum {
     GR_GAME_STATE_WIN,
 } GrGameState;
 
+typedef struct Billboard {
+    sprite s;
+    f32 z;
+} Billboard;
+
+#define LIST_TYPE Billboard
+#include "../list.h"
+
 typedef struct GrGame {
     DebugCamera debugCamera;
     b32 isInitialized;
@@ -94,6 +103,8 @@ typedef struct GrGame {
 
     GrGameState gameState;
     f32 targetTime;
+    b32 wasThrottle;
+    b32 screeching;
 } GrGame;
 
 #endif
