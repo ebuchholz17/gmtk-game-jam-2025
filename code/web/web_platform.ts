@@ -336,7 +336,7 @@ function clientPosToScreenPos (clientPos: number, canvasDim: number, clientDim: 
 }
 
 async function main (): Promise<void> {
-    let pageSize: number = 64 * 1024;
+    let pageSize: number = 256 * 1024;
     let numPages: number = 10000;
     let wasmMemory: WebAssembly.Memory = new WebAssembly.Memory({ initial: numPages });
     let memory: Uint8Array = new Uint8Array(wasmMemory.buffer);

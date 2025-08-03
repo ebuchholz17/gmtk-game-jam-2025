@@ -268,6 +268,13 @@ UPDATE_GNG_GAME(updateGNGGame) {
             .key = "font"
         });
         asset_to_load_listPush(assetList, (asset_to_load){
+            .name = "track_0",
+            .path = "assets/track_0.bmp",
+            .type = ASSET_TO_LOAD_TYPE_BITMAP,
+            .loaded = false,
+            .key = "track_0"
+        });
+        asset_to_load_listPush(assetList, (asset_to_load){
             .name = "track",
             .path = "assets/track.bmp",
             .type = ASSET_TO_LOAD_TYPE_BITMAP,

@@ -1,5 +1,5 @@
 game_atlas.png
-size: 127, 555
+size: 127, 543
 format: RGBA8888
 filter: Linear, Linear
 repeat: none
@@ -12,9 +12,9 @@ a_key
   index: -1
 car_0
   rotate: false
-  xy: 58, 335
-  size: 64, 64
-  orig: 64, 64
+  xy: 2, 335
+  size: 54, 52
+  orig: 54, 52
   offset: 0, 0
   index: -1
 car_1
@@ -103,7 +103,7 @@ face_button_up
   index: -1
 ghost_0
   rotate: false
-  xy: 2, 335
+  xy: 58, 335
   size: 54, 52
   orig: 54, 52
   offset: 0, 0
@@ -180,7 +180,7 @@ platform
   index: -1
 speedometer_base
   rotate: false
-  xy: 2, 401
+  xy: 2, 389
   size: 82, 53
   orig: 82, 53
   offset: 0, 0
@@ -215,7 +215,7 @@ suds_2
   index: -1
 tree
   rotate: false
-  xy: 2, 456
+  xy: 2, 444
   size: 84, 97
   orig: 84, 97
   offset: 0, 0

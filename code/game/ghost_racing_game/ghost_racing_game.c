@@ -36,9 +36,9 @@ vec2 trackToPixelCoords (vec2 trackCoords) {
     };
 }
 
-void startGame (mem_arena *tempMemory) {
+void startGame (i32 track) {
     DebugCamera *debugCamera = &grGame->debugCamera;
-    vec2 startPos = pixelToTrackCoords((vec2){ .x = 489.f, .y=2884.f });
+    vec2 startPos = pixelToTrackCoords((vec2){ .x = 489.f, .y=2400.f });
     debugCamera->pos = (vec3){
         .x = startPos.x,
         .y = 3.0f,
@@ -52,8 +52,30 @@ void startGame (mem_arena *tempMemory) {
     debugCamera->lastPointerY = 0;
 
     Car *playerCar = &grGame->playerCar;
-    playerCar->trackPos = pixelToTrackCoords((vec2){ .x=500.f, .y = 3245.f });
+
+    switch (track) {
+        case 0:
+            playerCar->trackPos = pixelToTrackCoords((vec2){ .x=957.f, .y = 2237.f });
+            break;
+        case 1:
+            playerCar->trackPos = pixelToTrackCoords((vec2){ .x=500.f, .y = 2400.f });
+            break;
+    }
+
     playerCar->forward = (vec2){.x=0, .y=-1.f};
+    playerCar->speed = 0.f;
+    playerCar->wheel = 0.f;
+    grGame->boosting = false;
+
+    grGame->track = track;
+    switch (track) {
+        case 0:
+            grGame->targetTime = 14.0f;
+            break;
+        case 1:
+            grGame->targetTime = 20.0f;
+            break;
+    }
 
     grGame->lapZoneIndex = 0;
     grGame->lap = 1;
@@ -62,8 +84,41 @@ void startGame (mem_arena *tempMemory) {
     grGame->hasBestLapTime = false;
 
     grGame->ghostIndex = 0;
-    grGame->targetTime = 20.0f;
     grGame->bestLapTime = 1000.0f;
+
+    grGame->walls.numValues = 0;
+
+    vec2 *trackPathsForTrack;
+    i32 numTracks;
+    switch (track) {
+        case 0:
+            trackPathsForTrack = trackPaths_0;
+            numTracks = ARRAY_COUNT(trackPaths_0);
+            break;
+        case 1:
+            trackPathsForTrack = trackPaths;
+            numTracks = ARRAY_COUNT(trackPaths);
+            break;
+    }
+    for (i32 i = 0; i < numTracks; i += 2) {
+        vec2 start = trackPathsForTrack[i];
+        vec2 end = trackPathsForTrack[i+1];
+
+        Wall wall = {
+            .startPos = start,
+            .endPos = end
+        };
+        Wall_listPush(&grGame->walls, wall);
+    }
+
+    for (i32 i = 0; i < 50; i++) {
+        GhostData *data = &grGame->ghostData[i];
+        data->entryIndex = 0;
+    }
+    for (i32 i = 0; i < 50; i++) {
+        GhostRacer *racer = &grGame->ghostRacers[i];
+        racer->frame =0;
+    }
 }
 
 
@@ -76,21 +131,10 @@ void initGrGame (GrGame *grg, mem_arena *memory, mem_arena *tempMemory) {
     // o
     
     grGame->walls = Wall_listInit(memory, 100);
-    for (i32 i = 0; i < ARRAY_COUNT(trackPaths); i += 2) {
-        vec2 start = trackPaths[i];
-        vec2 end = trackPaths[i+1];
-
-        Wall wall = {
-            .startPos = start,
-            .endPos = end
-        };
-        Wall_listPush(&grGame->walls, wall);
-    }
-
     grGame->ghostData = allocMemory(memory, sizeof(GhostData) * 50);
     
     // startGame function to init (or restart) game state
-    startGame(tempMemory);
+    startGame(0);
 
     grGame->isInitialized = true;
 }
@@ -144,6 +188,32 @@ b32 controllerAPressed (game_input *input) {
 
         if (cont->connected) {
             if (cont->aButton.justPressed) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+b32 controllerDownPressed (game_input *input) {
+    for (u32 controllerIndex = 0; controllerIndex < MAX_NUM_CONTROLLERS; controllerIndex++) {
+        game_controller_input *cont = &input->controllers[controllerIndex];
+
+        if (cont->connected) {
+            if (cont->dPadDown.justPressed) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+b32 controllerUpPressed (game_input *input) {
+    for (u32 controllerIndex = 0; controllerIndex < MAX_NUM_CONTROLLERS; controllerIndex++) {
+        game_controller_input *cont = &input->controllers[controllerIndex];
+
+        if (cont->connected) {
+            if (cont->dPadUp.justPressed) {
                 return true;
             }
         }
@@ -227,13 +297,28 @@ void handleLaps (void) {
     grGame->lapFrame++;
 
     vec2 carPixelPos = trackToPixelCoords(grGame->playerCar.trackPos);
-    for (i32 i = 0; i < ARRAY_COUNT(lapZones); i++) {
-        rect *lapZone = &lapZones[i];
+
+    rect *laps;
+    i32 numZones;
+    switch (grGame->track) {
+        case 0:
+            laps = lapZones_0;
+            numZones = ARRAY_COUNT(lapZones_0);
+            break;
+        case 1:
+            laps = lapZones;
+            numZones = ARRAY_COUNT(lapZones);
+            break;
+
+    }
+
+    for (i32 i = 0; i < numZones; i++) {
+        rect *lapZone = &laps[i];
         if (rectContainsPoint(*lapZone, carPixelPos.x, carPixelPos.y)) {
             i32 lastIndex = grGame->lapZoneIndex;
             grGame->lapZoneIndex = i;
 
-            if (grGame->lapZoneIndex == 0 && lastIndex == ARRAY_COUNT(lapZones) - 1) {
+            if (grGame->lapZoneIndex == 0 && lastIndex == numZones - 1) {
                 grGame->lap++;
                 grGame->lapFrame = 0;
                 grGame->ghostIndex++;
@@ -252,6 +337,8 @@ void handleLaps (void) {
                 }
 
                 if (grGame->currentLapTime <= grGame->targetTime) {
+                    soundManStopSound("engine");
+                    soundManStopSound("screech");
                     grGame->gameState = GR_GAME_STATE_WIN;
                 }
 
@@ -394,7 +481,16 @@ void applyGround (f32 dt) {
     int carPixelX = carPixelPos.x;
     int carPixelY = carPixelPos.y;
     if (carPixelX >= 0 && carPixelY >= 0 && carPixelX < 4096 && carPixelY < 4096) {
-        texture_asset *track = getTexture(assetMan, "track");
+        texture_asset *track;
+        switch (grGame->track) {
+            case 0:
+                track = getTexture(assetMan, "track_0");
+                break;
+            case 1:
+                track = getTexture(assetMan, "track");
+                break;
+
+        }
 
         u8 *pixel = &track->pixels[carPixelY * track->width * 4 + carPixelX * 4];
         u8 r = pixel[0];
@@ -543,18 +639,47 @@ void carUpdate  (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, 
 void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
     switch (grg->gameState) {
         case GR_GAME_STATE_TITLE: {
+            if (input->pointerJustDown) {
+                startGame(0);
+                grg->gameState = GR_GAME_STATE_TRACK_SELECT; 
+            }
+        } break;
+         case GR_GAME_STATE_TRACK_SELECT: {
+            if (input->downArrow.justPressed ||
+                vInput->dPadDown.button.justPressed ||
+                controllerDownPressed(input)) 
+            {
+                grGame->selectedOption++;
+                if (grGame->selectedOption > 1) {
+                    grGame->selectedOption = 0;
+                }
+            }
+
+            if (input->upArrow.justPressed ||
+                vInput->dPadUp.button.justPressed ||
+                controllerUpPressed(input)) 
+            {
+                grGame->selectedOption--;
+                if (grGame->selectedOption < 0) {
+                    grGame->selectedOption = 1;
+                }
+            }
+
             if (input->aKey.justPressed ||
                 vInput->bottomButton.button.justPressed ||
                 controllerAPressed(input)) 
             {
-                startGame(0);
-                grg->gameState = GR_GAME_STATE_MAIN; 
+                startGame(grGame->selectedOption);
+                grg->gameState = GR_GAME_STATE_MAIN;
             }
         } break;
-        case GR_GAME_STATE_MAIN: {
+       case GR_GAME_STATE_MAIN: {
             carUpdate(grg, input, vInput, dt, platAPI, memory);
         } break;
         case GR_GAME_STATE_WIN: {
+            soundManStopSound("engine");
+            soundManStopSound("screech");
+
             if (input->aKey.justPressed ||
                 vInput->bottomButton.button.justPressed ||
                 controllerAPressed(input)) 
@@ -694,7 +819,15 @@ void drawCars (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
 
     basic3DMan->view = view;
     basic3DMan->proj = proj;
+    switch (grGame->track) {
+        case 0:
+    basic3DMan->textureKey = "track_0";
+            break;
+        case 1:
     basic3DMan->textureKey = "track";
+            break;
+
+    }
 
     mat4x4 model = identityMatrix4x4();
     mat4x4 scale = scaleMatrix4x4(500.f);
@@ -706,8 +839,21 @@ void drawCars (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
 
     basic3DMan->model = model;
 
-    for (i32 i = 0; i < ARRAY_COUNT(treeLocs); i++) {
-        drawBillBoard(pixelToTrackCoords(treeLocs[i]), "tree", 100.0f, 1.0f, 0.0f, &billboards);
+    vec2 *trees;
+    i32 numTrees;
+    switch (grGame->track) {
+        case 0:
+            trees = treeLocs_0;
+            numTrees = ARRAY_COUNT(treeLocs_0);
+            break;
+        case 1:
+            trees = treeLocs;
+            numTrees = ARRAY_COUNT(treeLocs);
+            break;
+    }
+
+    for (i32 i = 0; i < numTrees; i++) {
+        drawBillBoard(pixelToTrackCoords(trees[i]), "tree", 100.0f, 1.0f, 0.0f, &billboards);
     }
 
     char *playerFrame = "car_0";
@@ -824,7 +970,7 @@ void drawCars (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
 
     {
         char *text = "Target time  ";
-        char *timeText = timeToText(20);
+        char *timeText = timeToText(grGame->targetTime);
         text = tempStringAppend(text, timeText);
         sprite_text labelText = {
             .text = text,
@@ -853,7 +999,7 @@ void drawGrGame (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
             }
 
             {
-                char *text = "Press A to continue";
+                char *text = "Click to continue";
                 sprite_text labelText = {
                     .text = text,
                     .fontKey = "font",
@@ -866,6 +1012,76 @@ void drawGrGame (GrGame *grg, plat_api platAPI, mem_arena *tempMemory) {
         } break;
         case GR_GAME_STATE_MAIN: {
             drawCars(grg, platAPI, tempMemory);
+        } break;
+        case GR_GAME_STATE_TRACK_SELECT: {
+            {
+                char *text = "Track select";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 60.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+
+            {
+                char *text = "EASY";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 100.0f
+                };
+                spriteManAddText(labelText);
+            }
+
+            if (grGame->selectedOption == 0) {
+    {
+        sprite s = defaultSprite();
+        s.pos = (vec2){ .x=158.f, .y=100.0f};
+        s.atlasKey = "game_atlas";
+        s.frameKey = "car_0";
+        s.anchor = (vec2){ .x=0.5f, .y=0.5f };
+        s.scale = 0.25f;
+        spriteManAddSprite(s);
+    }
+            }
+
+            {
+                char *text = "INTERMEDIATE";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 140.0f
+                };
+                spriteManAddText(labelText);
+            }
+
+            if (grGame->selectedOption == 1) {
+    {
+        sprite s = defaultSprite();
+        s.pos = (vec2){ .x=158.f, .y=140.0f};
+        s.atlasKey = "game_atlas";
+        s.frameKey = "car_0";
+        s.anchor = (vec2){ .x=0.5f, .y=0.5f };
+        s.scale = 0.25f;
+        spriteManAddSprite(s);
+    }
+            }
+            {
+                char *text = "Press A to continue";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 170.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
         } break;
         case GR_GAME_STATE_WIN: {
             {

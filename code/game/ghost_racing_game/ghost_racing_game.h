@@ -62,6 +62,7 @@ typedef enum {
 
 typedef enum {
     GR_GAME_STATE_TITLE,
+    GR_GAME_STATE_TRACK_SELECT,
     GR_GAME_STATE_MAIN,
     GR_GAME_STATE_WIN,
 } GrGameState;
@@ -105,6 +106,9 @@ typedef struct GrGame {
     f32 targetTime;
     b32 wasThrottle;
     b32 screeching;
+    i32 track;
+
+    i32 selectedOption;
 } GrGame;
 
 #endif
