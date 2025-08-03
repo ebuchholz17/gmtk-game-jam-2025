@@ -23,6 +23,7 @@ typedef struct CarInput {
     b32 brake;
     b32 steerLeft;
     b32 steerRight;
+    b32 action;
 } CarInput;
 
 typedef struct Wall {
@@ -46,10 +47,23 @@ typedef struct GhostData {
 typedef struct GhostRacer {
     i32 ghostIndex;
     i32 frame;
+    b32 inRange;
 } GhostRacer;
 
 #define LIST_TYPE GhostData
 #include "../list.h"
+
+typedef enum {
+    INPUT_SOURCE_KEYBOARD,
+    INPUT_SOURCE_GAMEPAD,
+    INPUT_SOURCE_VIRTUAL
+} InputSource;
+
+typedef enum {
+    GR_GAME_STATE_TITLE,
+    GR_GAME_STATE_MAIN,
+    GR_GAME_STATE_WIN,
+} GrGameState;
 
 typedef struct GrGame {
     DebugCamera debugCamera;
@@ -71,6 +85,15 @@ typedef struct GrGame {
     GhostRacer ghostRacers[50];
     i32 ghostIndex;
     i32 lapFrame;
+
+    InputSource inputSource;
+    b32 boosting;
+    f32 boostCooldown;
+    f32 boostDuration;
+    f32 accelTimer;
+
+    GrGameState gameState;
+    f32 targetTime;
 } GrGame;
 
 #endif

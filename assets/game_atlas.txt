@@ -1,123 +1,137 @@
 game_atlas.png
-size: 240, 202
+size: 127, 409
 format: RGBA8888
 filter: Linear, Linear
 repeat: none
+a_key
+  rotate: false
+  xy: 98, 2
+  size: 15, 15
+  orig: 15, 15
+  offset: 0, 0
+  index: -1
 car_0
   rotate: false
-  xy: 134, 136
+  xy: 58, 288
   size: 64, 64
   orig: 64, 64
   offset: 0, 0
   index: -1
 dpad_down_down
   rotate: false
-  xy: 188, 80
+  xy: 36, 37
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_down_up
   rotate: false
-  xy: 2, 136
+  xy: 80, 37
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_left_down
   rotate: false
-  xy: 2, 36
+  xy: 2, 93
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_left_up
   rotate: false
-  xy: 58, 36
+  xy: 58, 93
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_right_down
   rotate: false
-  xy: 114, 36
+  xy: 2, 137
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_right_up
   rotate: false
-  xy: 170, 36
+  xy: 58, 137
   size: 54, 42
   orig: 54, 42
   offset: 0, 0
   index: -1
 dpad_up_down
   rotate: false
-  xy: 46, 136
+  xy: 2, 181
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 dpad_up_up
   rotate: false
-  xy: 90, 136
+  xy: 46, 181
   size: 42, 54
   orig: 42, 54
   offset: 0, 0
   index: -1
 face_button_down
   rotate: false
-  xy: 2, 80
+  xy: 2, 237
   size: 49, 49
   orig: 49, 49
   offset: 0, 0
   index: -1
 face_button_up
   rotate: false
-  xy: 53, 80
+  xy: 53, 237
   size: 49, 49
   orig: 49, 49
   offset: 0, 0
   index: -1
+ghost_0
+  rotate: false
+  xy: 2, 288
+  size: 54, 52
+  orig: 54, 52
+  offset: 0, 0
+  index: -1
 grime_0
   rotate: false
-  xy: 146, 2
+  xy: 38, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 grime_1
   rotate: false
-  xy: 156, 2
+  xy: 48, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 grime_2
   rotate: false
-  xy: 166, 2
+  xy: 58, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 hitbox_frame_data
   rotate: false
-  xy: 122, 2
+  xy: 14, 2
   size: 10, 10
   orig: 10, 10
   offset: 0, 0
   index: -1
 hurtbox_frame_data
   rotate: false
-  xy: 134, 2
+  xy: 26, 2
   size: 10, 10
   orig: 10, 10
   offset: 0, 0
   index: -1
 needle
   rotate: false
-  xy: 14, 2
+  xy: 69, 20
   size: 56, 7
   orig: 56, 7
   offset: 0, 0
@@ -145,43 +159,50 @@ particle_white_big
   index: -1
 platform
   rotate: false
-  xy: 72, 2
+  xy: 19, 20
   size: 48, 8
   orig: 48, 8
   offset: 0, 0
   index: -1
 speedometer_base
   rotate: false
-  xy: 104, 80
+  xy: 2, 354
   size: 82, 53
   orig: 82, 53
   offset: 0, 0
   index: -1
 sponge_man
   rotate: false
-  xy: 206, 2
+  xy: 2, 37
   size: 32, 32
   orig: 32, 32
   offset: 0, 0
   index: -1
 suds_0
   rotate: false
-  xy: 176, 2
+  xy: 68, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 suds_1
   rotate: false
-  xy: 186, 2
+  xy: 78, 2
   size: 8, 16
   orig: 8, 16
   offset: 0, 0
   index: -1
 suds_2
   rotate: false
-  xy: 196, 2
+  xy: 88, 2
   size: 8, 16
   orig: 8, 16
+  offset: 0, 0
+  index: -1
+x_button
+  rotate: false
+  xy: 2, 20
+  size: 15, 15
+  orig: 15, 15
   offset: 0, 0
   index: -1

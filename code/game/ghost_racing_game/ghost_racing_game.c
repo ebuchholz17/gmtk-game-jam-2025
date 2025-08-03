@@ -16,6 +16,7 @@
 #include "atan.c"
 
 extern basic_3d_man *basic3DMan;
+extern sprite_man *spriteMan;
 
 GrGame *grGame;
 
@@ -59,6 +60,8 @@ void startGame (mem_arena *tempMemory) {
     grGame->hasBestLapTime = false;
 
     grGame->ghostIndex = 0;
+    grGame->targetTime = 20.0f;
+    grGame->bestLapTime = 1000.0f;
 }
 
 
@@ -133,13 +136,86 @@ void debugCameraMovement (DebugCamera *debugCamera, game_input *input, f32 dt) {
     debugCamera->pos = vec3Add(debugCamera->pos, moveVector);
 }
 
+b32 controllerAPressed (game_input *input) {
+    for (u32 controllerIndex = 0; controllerIndex < MAX_NUM_CONTROLLERS; controllerIndex++) {
+        game_controller_input *cont = &input->controllers[controllerIndex];
+
+        if (cont->connected) {
+            if (cont->aButton.justPressed) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 CarInput handleInput (game_input *input, virtual_input *vInput) {
     CarInput result;
 
-    result.throttle = input->upArrow.down || vInput->bottomButton.button.down;
-    result.brake = input->downArrow.down || vInput->rightButton.button.down;
-    result.steerLeft = input->leftArrow.down || vInput->dPadLeft.button.down;
-    result.steerRight = input->rightArrow.down || vInput->dPadRight.button.down;
+    if (input->leftArrow.down || 
+        input->rightArrow.down || 
+        input->upArrow.down || 
+        input->downArrow.down ||
+        input->aKey.down) 
+    {
+        grGame->inputSource = INPUT_SOURCE_KEYBOARD;
+    }
+    else if (vInput->dPadUp.button.down || 
+             vInput->dPadDown.button.down || 
+             vInput->dPadLeft.button.down || 
+             vInput->dPadRight.button.down ||
+             vInput->bottomButton.button.down ||
+             vInput->rightButton.button.down ||
+             vInput->leftButton.button.down)
+    {
+        grGame->inputSource = INPUT_SOURCE_VIRTUAL;
+    }
+    else {
+        for (u32 controllerIndex = 0; controllerIndex < MAX_NUM_CONTROLLERS; controllerIndex++) {
+            game_controller_input *cont = &input->controllers[controllerIndex];
+
+            if (cont->connected) {
+                b32 useController;
+                if (cont->dPadUp.down || cont->dPadLeft.down || cont->dPadDown.down || cont->dPadRight.down ||
+                    cont->aButton.down || cont->bButton.down || cont->xButton.down) 
+                {
+                    grGame->inputSource = INPUT_SOURCE_GAMEPAD;
+                    break;
+                }
+            }
+        }
+    }
+
+    switch (grGame->inputSource) {
+        case INPUT_SOURCE_KEYBOARD: {
+            result.steerLeft = input->leftArrow.down;
+            result.steerRight = input->rightArrow.down;
+            result.throttle = input->upArrow.down;
+            result.brake = input->downArrow.down;
+            result.action = input->aKey.justPressed;
+        } break;
+        case INPUT_SOURCE_VIRTUAL: {
+            result.steerLeft = vInput->dPadLeft.button.down;
+            result.steerRight = vInput->dPadRight.button.down;
+            result.throttle = vInput->bottomButton.button.down;
+            result.brake = vInput->rightButton.button.down;
+            result.action = vInput->leftButton.button.justPressed;
+        } break;
+        case INPUT_SOURCE_GAMEPAD: {
+            for (u32 controllerIndex = 0; controllerIndex < MAX_NUM_CONTROLLERS; controllerIndex++) {
+                game_controller_input *cont = &input->controllers[controllerIndex];
+
+                if (cont->connected) {
+                    result.steerLeft = cont->dPadLeft.down;
+                    result.steerRight = cont->dPadRight.down;
+                    result.throttle = cont->aButton.down;
+                    result.brake = cont->bButton.down;
+                    result.action = cont->xButton.justPressed;
+                    break;
+                }
+            }
+        } break;
+    }
 
     return result;
 }
@@ -171,6 +247,10 @@ void handleLaps (void) {
                 else {
                     grGame->hasBestLapTime = true;
                     grGame->bestLapTime = grGame->currentLapTime;
+                }
+
+                if (grGame->currentLapTime <= grGame->targetTime) {
+                    grGame->gameState = GR_GAME_STATE_WIN;
                 }
 
                 grGame->lapTimes[grGame->lapTimeIndex] = grGame->currentLapTime;
@@ -205,20 +285,39 @@ f32 arctangent2(f32 y, f32 x) {
 void steerCar (CarInput *input, f32 dt) {
     f32 acceleration = 11.0f;
     f32 maxSpeed = 180.0f;
-    if (input->throttle) {
-        grGame->playerCar.speed += 11.0f * dt;
+
+    if (grGame->boosting && grGame->accelTimer > 0.0f) {
+        if (grGame->playerCar.speed < 70.f) {
+            grGame->playerCar.speed += 300.0f * dt;
+        }
+        else {
+            grGame->playerCar.speed += 100.0f * dt;
+        }
     }
-    else {
+
+    if (input->throttle) {
+        if (grGame->boosting) {
+            grGame->playerCar.speed += 11.0f * dt;
+        }
+        else {
+            if (grGame->playerCar.speed < maxSpeed) {
+                grGame->playerCar.speed += 11.0f * dt;
+            }
+        }
+    }
+    else if (!grGame->boosting) {
         grGame->playerCar.speed -= 5.0f * dt;
     }
 
     if (input->brake) {
-        grGame->playerCar.speed -= 50.0f * dt;
+        if (grGame->boosting) {
+            grGame->playerCar.speed -= 75.0f * dt;
+        }
+        else {
+            grGame->playerCar.speed -= 50.0f * dt;
+        }
     }
 
-    if (grGame->playerCar.speed > maxSpeed) {
-        grGame->playerCar.speed = maxSpeed;
-    }
     if (grGame->playerCar.speed < 0.f) {
         grGame->playerCar.speed = 0.f;
     }
@@ -232,6 +331,10 @@ void steerCar (CarInput *input, f32 dt) {
     f32 angle = arctangent2(playerCar->forward.y, playerCar->forward.x);
     angle /= (2.0f * PI);
     f32 wheelSpeed = 3.0f;
+    if (grGame->boosting) {
+        wheelSpeed = 5.0f;
+    }
+
     if (input->steerLeft) {
         playerCar->wheel -= wheelSpeed * dt;
     }
@@ -254,7 +357,7 @@ void steerCar (CarInput *input, f32 dt) {
     }
 
     f32 maxWheel = 1.0f;
-    if (playerCar->speed > 45.0f) {
+    if (!grGame->boosting && playerCar->speed > 45.0f) {
         maxWheel = 1.0f - ((playerCar->speed - 45.0f) / 90.0f) * 0.5f;
     }
 
@@ -274,6 +377,10 @@ void steerCar (CarInput *input, f32 dt) {
 }
 
 void applyGround (f32 dt) {
+    if (grGame->boosting) {
+        return;
+    }
+
     vec2 carPixelPos = trackToPixelCoords((vec2){ grGame->playerCar.trackPos.x, grGame->playerCar.trackPos.y});
     int carPixelX = carPixelPos.x;
     int carPixelY = carPixelPos.y;
@@ -292,7 +399,7 @@ void applyGround (f32 dt) {
         }
 
         if (!onTrack) {
-            grGame->playerCar.speed -= grGame->playerCar.speed * 1.f * dt;
+            grGame->playerCar.speed -= grGame->playerCar.speed * 0.5f * dt;
         }
     }
 }
@@ -325,8 +432,7 @@ void handleWalls (f32 dt) {
     }
 }
 
-
-void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
+void carUpdate  (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
     // check to restart game
     //debugCameraMovement(&grGame->debugCamera, input, dt);
 
@@ -362,15 +468,80 @@ void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt
         if (racer->frame >= data->entryIndex) {
             racer->frame = 0;
         }
+
+        GhostDataEntry *entry = &data->entries[racer->frame];
+        vec2 ghostToPlayer = vec2Subtract(entry->pos, grGame->playerCar.trackPos);
+        f32 distToPlayer = vec2Length(ghostToPlayer);
+        if (distToPlayer < 10.f) {
+            racer->inRange = true;
+
+            if (grGame->boostCooldown <= 0.0f && carInput.action) {
+        grGame->boosting = true;
+        grGame->accelTimer = 0.2f;
+        grGame->boostCooldown = 0.33f;
+        grGame->boostDuration = 2.0f;
+            }
+        }
+        else {
+            racer->inRange = false;
+        }
+    }
+
+    //if (grGame->boostCooldown <= 0.0f && carInput.action) {
+    //    grGame->boosting = true;
+    //    grGame->accelTimer = 0.2f;
+    //    grGame->boostCooldown = 0.33f;
+    //    grGame->boostDuration = 2.0f;
+    //}
+
+    grGame->accelTimer -= dt;
+    if (grGame->accelTimer < 0.f) {
+        grGame->accelTimer = 0.0f;
+    }
+
+    grGame->boostCooldown -= dt;
+    if (grGame->boostCooldown < 0.f) {
+        grGame->boostCooldown = 0.0f;
+    }
+
+    grGame->boostDuration -= dt;
+    if (grGame->boostDuration <= 0.f) {
+        grGame->boostDuration = 0.0f;
+        grGame->boosting = false;
     }
 }
 
-void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
+void updateGrGame (GrGame *grg, game_input *input, virtual_input *vInput, f32 dt, plat_api platAPI, mem_arena *memory) {
+    switch (grg->gameState) {
+        case GR_GAME_STATE_TITLE: {
+            if (input->aKey.justPressed ||
+                vInput->bottomButton.button.justPressed ||
+                controllerAPressed(input)) 
+            {
+                startGame(0);
+                grg->gameState = GR_GAME_STATE_MAIN; 
+            }
+        } break;
+        case GR_GAME_STATE_MAIN: {
+            carUpdate(grg, input, vInput, dt, platAPI, memory);
+        } break;
+        case GR_GAME_STATE_WIN: {
+            if (input->aKey.justPressed ||
+                vInput->bottomButton.button.justPressed ||
+                controllerAPressed(input)) 
+            {
+                grg->gameState = GR_GAME_STATE_TITLE;
+            }
+        } break;
+    }
+}
+
+void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale, f32 alpha, f32 y) {
     mat4x4 view = basic3DMan->view;
     mat4x4 proj = basic3DMan->proj;
     mat4x4 camMatrix = mat4x4MatrixMul(proj, view);
     f32 w = 1.0f;
-    vec3 screenPos = transformPoint(camMatrix, (vec3){ .x=trackPos.x, .y=0.0f, .z=trackPos.y }, &w);
+    vec3 screenPos = transformPoint(camMatrix, (vec3){ .x=trackPos.x, .y=y, .z=trackPos.y }, &w);
     screenPos.x /= w;
     screenPos.y /= w;
     screenPos.z /= w;
@@ -381,6 +552,7 @@ void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
         s.pos.x = (screenPos.x + 1.0f) / 2.0f * 356.f;
         s.pos.y = (1.f - ((screenPos.y + 1.0f) / 2.0f)) * 200.f;
         s.scale = z * scale;
+        s.alpha = alpha;
         s.atlasKey = "game_atlas";
         s.frameKey = frameKey;
         s.anchor = (vec2){ .x = 0.5f, .y = 1.0f };
@@ -388,7 +560,7 @@ void drawBillBoard (vec2 trackPos, char *frameKey, f32 scale) {
     }
 }
 
-void drawTime (f32 timeF, f32 x, f32 y) {
+char *timeToText (f32 timeF) {
     u32 time = (u32)timeF;
     u32 seconds = time % 60;
     f32 millisecondsF = timeF - (f32)time;
@@ -405,16 +577,39 @@ void drawTime (f32 timeF, f32 x, f32 y) {
         timeString = tempStringAppend(timeString, "0");
     }
     timeString = tempStringAppend(timeString, tempStringFromI32((i32)milliseconds));
+    return timeString;
+}
+
+void drawTime (f32 timeF, f32 x, f32 y) {
+    char *text = timeToText(timeF);
 
     spriteManAddText((sprite_text){
         .x = x,
         .y = y,
-        .text = timeString,
+        .text = text,
         .fontKey = "font"
     });
 }
 
-void drawGrGame (GrGame *grg, plat_api platAPI) { 
+f32 textWidth (sprite_text *text) {
+    f32 width = 0;
+    char *cursor = text->text;
+    while (*cursor != 0) {
+        bitmap_font_letter_coord c = spriteMan->fontLetterCoords[*cursor];
+        width += c.advance;
+        cursor++;
+    }
+    return width;
+}
+
+void centerText (sprite_text *text) {
+    f32 width = textWidth(text);
+    f32 offset = -((f32)width / 2.0f);
+    text->x += offset;
+    text->y -= 4.0f;
+}
+
+void drawCars (GrGame *grg, plat_api platAPI) {
         // TODO(ebuchholz): testing, remove
         basic3DMan->shouldDraw = true;
         //mat4x4 view = createViewMatrix(quat rotation, float x, float y, float z) ;
@@ -460,16 +655,41 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
 
     basic3DMan->model = model;
 
-    drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f);
-
+    drawBillBoard(grGame->playerCar.trackPos, "car_0", 50.0f, 1.0f, 0.0f);
+    if (grGame->boosting) {
+        GhostData *data = &grGame->ghostData[grGame->ghostIndex];
+        if (data->entryIndex > 5) {
+            vec2 last = grGame->playerCar.trackPos;
+            for (i32 i = 1; i < 4; i++) {
+                GhostDataEntry *entry = &data->entries[data->entryIndex - i];
+                vec2 entryPos = entry->pos;
+                vec2 entryToLast = vec2Subtract(entryPos, last);
+                f32 t = 0.f;
+                for (i32 j = 0; j < 3; j++) {
+                    t += 0.33f;
+                    vec2 amt = vec2ScalarMul(t, entryToLast);
+                    vec2 newPos = vec2Add(last, amt);
+                    drawBillBoard(newPos, "ghost_0", 50.0f, 0.5f, 0.0f);
+                }
+                last = entryPos;
+            }
+        }
+    }
 
     for (i32 i = 0; i < (grGame->lap - 1) && i < 50; i++) {
         GhostRacer *racer = &grGame->ghostRacers[i];
         GhostData *data = &grGame->ghostData[racer->ghostIndex];
         GhostDataEntry *entry = &data->entries[racer->frame];
-        drawBillBoard(entry->pos, "car_0", 50.0f);
-    }
+        drawBillBoard(entry->pos, "ghost_0", 50.0f, 0.75f, 0.0f);
 
+        if (racer->inRange) {
+            char *inputFrame = "a_key";
+            if (grGame->inputSource == INPUT_SOURCE_GAMEPAD || grGame->inputSource == INPUT_SOURCE_VIRTUAL) {
+                inputFrame = "x_button";
+            }
+            drawBillBoard(entry->pos,inputFrame, 70.0f, 1.0f, 5.0f);
+        }
+    }
 
     {
         sprite s = defaultSprite();
@@ -532,5 +752,91 @@ void drawGrGame (GrGame *grg, plat_api platAPI) {
             spriteManAddText(labelText);
         }
         drawTime(grGame->bestLapTime, 294.0f, timeY);
+    }
+
+    {
+        char *text = "Target time  ";
+        char *timeText = timeToText(20);
+        text = tempStringAppend(text, timeText);
+        sprite_text labelText = {
+            .text = text,
+            .fontKey = "font",
+            .x = 286.0f,
+            .y = 8.0f
+        };
+        centerText(&labelText);
+        spriteManAddText(labelText);
+    }
+}
+
+void drawGrGame (GrGame *grg, plat_api platAPI) { 
+    switch (grg->gameState) {
+        case GR_GAME_STATE_TITLE: {
+            {
+                char *text = "Chrono Kart";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 80.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+
+            {
+                char *text = "Press A to continue";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 120.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+        } break;
+        case GR_GAME_STATE_MAIN: {
+            drawCars(grg, platAPI);
+        } break;
+        case GR_GAME_STATE_WIN: {
+            {
+                char *text = "You won!";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 60.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+
+            {
+                char *text = "Time ";
+                char *timeText = timeToText(grGame->bestLapTime);
+                text = tempStringAppend(text, timeText);
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 100.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+
+            {
+                char *text = "Press A to continue";
+                sprite_text labelText = {
+                    .text = text,
+                    .fontKey = "font",
+                    .x = 178.0f,
+                    .y = 140.0f
+                };
+                centerText(&labelText);
+                spriteManAddText(labelText);
+            }
+        } break;
     }
 }
